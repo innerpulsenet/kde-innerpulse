@@ -94,13 +94,16 @@ function surfaces(t) {
   const files = {};
   const panelM = { top: 4, bottom: 4, left: 4, right: 4 };
   const dialogM = { top: 8, bottom: 8, left: 8, right: 8 };
-  // translucent/ is what Plasma uses when the compositor blurs behind: frosted glass, about three quarters ground
-  const variants = [['', 1], ['translucent/', t.dark ? 0.74 : 0.78], ['solid/', 1], ['opaque/', 1]];
-  for (const [dir, a] of variants) {
+  // translucent/ is what Plasma uses when the compositor blurs behind. The panel only ever has the wallpaper
+  // behind it, so it can be properly frosted (about three quarters ground). Popups and tooltips open over
+  // any window, so they stay about 92% ground: at three quarters, a popup over a dark window drifted far enough
+  // from its ground to fail AA for small gray text (measured: paper #e9e4db became #c3c1bd).
+  const variants = [['', 1, 1], ['translucent/', t.dark ? 0.74 : 0.78, t.dark ? 0.92 : 0.93], ['solid/', 1, 1], ['opaque/', 1, 1]];
+  for (const [dir, a, pop] of variants) {
     files[`${dir}widgets/panel-background.svg`] = framedSurface(t, { bg: 'HeaderBackground', alpha: a, cell: 14, margins: panelM, scale: true, shadowReach: 16, shadowDy: 2, shadowAlpha: t.shadowAlpha * 0.7 });
-    files[`${dir}dialogs/background.svg`] = framedSurface(t, { bg: 'Background', alpha: a, cell: 20, margins: dialogM, tick: true, shadowDy: 3 });
-    files[`${dir}widgets/tooltip.svg`] = framedSurface(t, { bg: 'Background', alpha: a, margins: { top: 6, bottom: 6, left: 8, right: 8 }, shadowReach: 14, shadowDy: 2 });
-    files[`${dir}widgets/background.svg`] = framedSurface(t, { bg: 'Background', alpha: dir === 'translucent/' ? a : 1, cell: 20, margins: { top: 10, bottom: 10, left: 10, right: 10 }, tick: true, shadowReach: 18, shadowDy: 3 });
+    files[`${dir}dialogs/background.svg`] = framedSurface(t, { bg: 'Background', alpha: pop, cell: 20, margins: dialogM, tick: true, shadowDy: 3 });
+    files[`${dir}widgets/tooltip.svg`] = framedSurface(t, { bg: 'Background', alpha: pop, margins: { top: 6, bottom: 6, left: 8, right: 8 }, shadowReach: 14, shadowDy: 2 });
+    files[`${dir}widgets/background.svg`] = framedSurface(t, { bg: 'Background', alpha: pop, cell: 20, margins: { top: 10, bottom: 10, left: 10, right: 10 }, tick: true, shadowReach: 18, shadowDy: 3 });
   }
   return files;
 }
@@ -187,12 +190,99 @@ function viewitem(t) {
   return doc(10 + 4 * (size + 10), size + 20, out.join('\n'), { style: colorStyle(t) });
 }
 
+// --- controls: buttons, text fields, tabs ----------------------------------------------------------------
+//
+// Plasma's own controls in the same glass as the apps' Oxygen widgets, so the shell and the apps speak one
+// language. Every margin matches Breeze's, so no layout moves. A raised control is lit from above (sheen, lip,
+// shade at the foot); a sunken one (a text field) is shaded at the top with a lip at the foot. Focus is an
+// ember ring; the active tab carries the ember index tick on the side that faces its content.
+
+const tiny = 0.001; // Breeze writes zero-width margins as hairline hints; a 0 would read as "no hint"
+
+function controlDoc(t, blocks, defs = '', step = 60) {
+  const sheen = `<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="${GLASS[t.id].sheen}"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`;
+  let y = 10;
+  const body = blocks.map((b) => { const out = b(y); y += step; return out; }).join('\n');
+  return doc(260, y + 10, body, { style: colorStyle(t), defs: sheen + defs });
+}
+
+// one nine-slice block at row y: the frame at x 10, its hints at x 120
+function block(prefix, { fill, stroke = '', border = 1, cell = 6, r = 4, margins, extra }) {
+  return (y) => frame({ prefix, x: 10, y, L: cell, T: cell, R: cell, B: cell, W: 32, H: 32, r, border, fill, stroke, extra }) +
+    '\n' + hints(prefix, margins, 120, y);
+}
+
+const ring = (cls2, op, width = 1) => ({ fill: 'fill="none"', stroke: `class="ColorScheme-${cls2}" fill="currentColor"${op < 1 ? ` opacity="${op}"` : ''}`, border: width });
+
+// shade/lip helpers on a frame's top or bottom edge cells
+function bevel(t, { raised = true, sheen = true }) {
+  const g = GLASS[t.id];
+  return (name, c, f) => {
+    const isTop = name === 'top' || name === 'topleft' || name === 'topright';
+    const isBottom = name === 'bottom' || name === 'bottomleft' || name === 'bottomright';
+    const x0 = name.endsWith('left') ? f.fx0 + 4 : f.fx0, x1 = name.endsWith('right') ? f.fx1 - 4 : f.fx1;
+    let s = '';
+    if (isTop && raised && sheen) s += rect(x0, f.fy0 + 1, x1 - x0, f.fy1 - f.fy0 - 1, 'fill="url(#sheen)"');
+    if (isTop) s += raised ? rect(x0, f.fy0 + 1, x1 - x0, 1, `fill="#fff" fill-opacity="${g.lip}"`) : rect(x0, f.fy0 + 1, x1 - x0, 1, `fill="#000" fill-opacity="${g.shade}"`);
+    if (isBottom) s += raised ? rect(x0, f.fy1 - 2, x1 - x0, 1, `fill="#000" fill-opacity="${g.shade}"`) : rect(x0, f.fy1 - 2, x1 - x0, 1, `fill="#fff" fill-opacity="${g.lip * 0.6}"`);
+    return s;
+  };
+}
+
+function buttonSvg(t) {
+  const line = `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.18 : 0.22}"`;
+  const blocks = [
+    block('normal-', { fill: cls('ButtonBackground'), stroke: line, margins: { top: 6, bottom: 6, left: 6, right: 6 }, extra: bevel(t, { raised: true }) }),
+    block('pressed-', { fill: cls('ButtonBackground'), stroke: line, margins: { top: 6, bottom: 6, left: 6, right: 6 }, extra: (n2, c, f) => bevel(t, { raised: false })(n2, c, f) + (n2 === 'center' ? rect(c.x, c.y, c.w, c.h, `fill="#000" fill-opacity="${t.dark ? 0.12 : 0.05}"`) : '') }),
+    block('hover-', { ...ring('ButtonHover', 1), margins: { top: tiny, bottom: tiny, left: tiny, right: tiny } }),
+    block('focus-', { ...ring('ButtonFocus', 1, 2), margins: { top: 2, bottom: 2, left: 2, right: 2 } }),
+    block('toolbutton-hover-', { fill: `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.08 : 0.07}"`, stroke: `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.12 : 0.14}"`, margins: { top: 4, bottom: 4, left: 4, right: 4 }, extra: bevel(t, { raised: true }) }),
+    block('toolbutton-pressed-', { fill: `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.14 : 0.12}"`, stroke: `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.16 : 0.18}"`, margins: { top: 4, bottom: 4, left: 4, right: 4 }, extra: bevel(t, { raised: false }) }),
+    block('toolbutton-focus-', { ...ring('ButtonFocus', 1, 2), margins: { top: 2, bottom: 2, left: 2, right: 2 } }),
+    (y) => frame({ prefix: 'mask-normal-', x: 10, y, L: 6, T: 6, R: 6, B: 6, W: 32, H: 32, r: 4, border: 0, fill: 'fill="#000"', stroke: '' }),
+  ];
+  const sh = shadowFrame({ x: 10, y: 10 + blocks.length * 60, s: 3, inner: 6, r: 4, rgb: t.shadow, alpha: t.shadowAlpha * 0.6, dy: 1, uid: 'bsh' });
+  blocks.push(() => sh.body);
+  return controlDoc(t, blocks, sh.defs);
+}
+
+function lineeditSvg(t) {
+  const line = `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.2 : 0.24}"`;
+  return controlDoc(t, [
+    block('base-', { fill: cls('ViewBackground'), stroke: line, margins: { top: 6, bottom: 6, left: 6, right: 6 }, extra: bevel(t, { raised: false }) }),
+    block('hover-', { ...ring('ButtonHover', 1), margins: { top: tiny, bottom: tiny, left: tiny, right: tiny } }),
+    block('focus-', { ...ring('ViewFocus', 1, 2), margins: { top: tiny, bottom: tiny, left: tiny, right: tiny } }),
+    block('focusframe-', { ...ring('ViewFocus', 0.5, 2), margins: { top: 2, bottom: 2, left: 2, right: 2 } }),
+    () => `<rect id="hint-focus-over-base" x="200" y="10" width="2" height="2" fill="#f0f" opacity=".001"/><rect id="hint-tile-center" x="206" y="10" width="2" height="2" fill="#f0f" opacity=".001"/>`,
+  ]);
+}
+
+function tabbarSvg(t) {
+  const fill = `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.08 : 0.07}"`;
+  const ember = cls('ButtonFocus');
+  // the tick sits on the edge that faces the tab's content: south tabs (a bar under its content) tick on top
+  const sides = {
+    south: (n2, c) => (n2 === 'topleft' ? rect(c.x + 5, c.y, Math.min(12, c.w - 5), 2, ember) : ''),
+    north: (n2, c) => (n2 === 'bottomleft' ? rect(c.x + 5, c.y + c.h - 2, Math.min(12, c.w - 5), 2, ember) : ''),
+    west: (n2, c) => (n2 === 'topright' ? rect(c.x + c.w - 2, c.y + 5, 2, Math.min(12, c.h - 5), ember) : ''),
+    east: (n2, c) => (n2 === 'topleft' ? rect(c.x, c.y + 5, 2, Math.min(12, c.h - 5), ember) : ''),
+  };
+  const blocks = Object.entries(sides).map(([side, tick]) =>
+    block(`${side}-active-tab-`, { fill, border: 0, cell: 18, margins: { top: 10, bottom: 10, left: 6, right: 6 },
+      extra: (n2, c, f) => bevel(t, { raised: true })(n2, c, f) + tick(n2, c) }));
+  blocks.push(() => `<rect id="hint-tile-center" x="200" y="10" width="2" height="2" fill="#f0f" opacity=".001"/>`);
+  return controlDoc(t, blocks, '', 80);
+}
+
 // --- package ---------------------------------------------------------------------------------------------
 
 export function plasmaTheme(t, version) {
   const files = surfaces(t);
   files['widgets/tasks.svg'] = tasks(t);
   files['widgets/viewitem.svg'] = viewitem(t);
+  files['widgets/button.svg'] = buttonSvg(t);
+  files['widgets/lineedit.svg'] = lineeditSvg(t);
+  files['widgets/tabbar.svg'] = tabbarSvg(t);
   files['metadata.json'] = JSON.stringify({
     KPlugin: {
       Authors: [{ Name: 'innerpulse', Email: '' }],

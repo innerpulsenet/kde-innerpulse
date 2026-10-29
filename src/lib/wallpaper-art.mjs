@@ -38,6 +38,7 @@ function weave(t) {
 // --- horizon ---------------------------------------------------------------------------------------------
 
 export const HORIZON = { rows: 80, cols: 150, dt: PERIOD / 80 };
+const RISE_X = 3;
 
 export function horizonWallpaper(t) {
   const c = palette(t);
@@ -46,7 +47,7 @@ export function horizonWallpaper(t) {
   const cx = VW / 2, y0 = VH * 0.43, yF = VH * 0.86;
   const dz = 0.17, span = VW * 0.98, amp = 150;
   const rest = barHeights();
-  const maxH = Math.max(...rest) + 16;
+  const maxH = Math.max(...rest) + 16; // normalize to the true peak, so resting rows keep their scale and the crest stands above them
   // where the six bars sit on the floor (world x, −1 … 1)
   const pos = rest.map((_, i) => (barX(i) / MARK.span) * 0.34);
   // low hills under everything, fixed in x so they read as ground, not signal
@@ -60,7 +61,8 @@ export function horizonWallpaper(t) {
   for (let k = N - 1; k >= 0; k--) {
     const z = 1 + k * dz, s = 1 / z;
     const y = y0 + (yF - y0) * s;
-    const hs = beatHeights(T0 - k * dt, { period: PERIOD });
+    // the beat's rise is drawn 3× (stated in the caption): at true scale, 16 units on 98, the crest is lost
+    const hs = beatHeights(T0 - k * dt, { period: PERIOD, rise: 16 * RISE_X });
     const pts = [];
     for (let j = 0; j < M; j++) {
       const xw = -1 + (2 * j) / (M - 1);
@@ -110,7 +112,7 @@ export function horizonWallpaper(t) {
     g.layer,
     caption([
       `ONE BEAT IN DEPTH · ${N} READINGS, ${dt.toFixed(3)} s APART`,
-      'FRONT ROW LIVE · PERIOD 4.5 s',
+      `FRONT ROW LIVE · PERIOD 4.5 s · RISE DRAWN ×${RISE_X}`,
     ], VW - 72, Math.round(y0 - 92), c.cap),
   ].join('\n');
   return svgDoc(body, defs);

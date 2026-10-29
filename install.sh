@@ -105,6 +105,7 @@ save_previous() {
     echo "splash=$(kreadconfig6 --file ksplashrc --group KSplash --key Theme)"
     echo "konsoleprofile=$(kreadconfig6 --file konsolerc --group 'Desktop Entry' --key DefaultProfile)"
     echo "widgetstyle=$(kreadconfig6 --file kdeglobals --group KDE --key widgetStyle)"
+    echo "oxygengradient=$(kreadconfig6 --file oxygenrc --group Common --key UseBackgroundGradient)"
     echo "font=$(kreadconfig6 --file kdeglobals --group General --key font)"
     echo "fixed=$(kreadconfig6 --file kdeglobals --group General --key fixed)"
     echo "menuFont=$(kreadconfig6 --file kdeglobals --group General --key menuFont)"
@@ -138,6 +139,10 @@ do_apply() {
   kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
   # Widgets: Oxygen's glass (top-lit window gradient, raised glass buttons) recolored by the scheme, or Breeze.
   kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle "$STYLE"
+  # Oxygen lightens a window's ground toward its top. On warm Ink that turns the ink olive-brown, so Ink turns it
+  # off; Paper and Carbon keep it.
+  local gradient=true; [[ $variant == ink ]] && gradient=false
+  kwriteconfig6 --file oxygenrc --group Common --key UseBackgroundGradient "$gradient"
   reconfigure_kwin
 
   # Wallpaper on every screen, and the same image behind the lock screen. The Exposure package carries both
@@ -200,6 +205,10 @@ do_restore() {
   else kwriteconfig6 --file ksplashrc --group KSplash --key Theme --delete; fi
   if [[ -n "${p[konsoleprofile]}" ]]; then kwriteconfig6 --file konsolerc --group 'Desktop Entry' --key DefaultProfile "${p[konsoleprofile]}"
   else kwriteconfig6 --file konsolerc --group 'Desktop Entry' --key DefaultProfile --delete; fi
+  if [[ -v "p[oxygengradient]" ]]; then
+    if [[ -n "${p[oxygengradient]}" ]]; then kwriteconfig6 --file oxygenrc --group Common --key UseBackgroundGradient "${p[oxygengradient]}"
+    else kwriteconfig6 --file oxygenrc --group Common --key UseBackgroundGradient --delete; fi
+  fi
   # (state saved by an older install.sh has no widgetstyle line; the global theme applied above sets it then)
   if [[ -v "p[widgetstyle]" ]]; then
     if [[ -n "${p[widgetstyle]}" ]]; then kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle "${p[widgetstyle]}"

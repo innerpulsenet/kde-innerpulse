@@ -36,7 +36,7 @@ These previews are illustrations drawn from the theme's own palette and geometry
 | Exposure | Horizon |
 |---|---|
 | ![Exposure](docs/wallpaper-exposure.jpg) | ![Horizon](docs/wallpaper-horizon.jpg) |
-| One beat of the mark photographed 96 times over 1.6 s, 8 px apart, resolving into the mark at rest | One beat in depth: 80 readings 0.056 s apart, receding to a horizon. The front row is live |
+| One beat of the mark photographed 96 times over 1.6 s, 8 px apart, resolving into the mark at rest | One beat in depth: 80 readings 0.056 s apart, receding to a horizon, with the rise drawn 3× (as its caption says). The front row is live |
 | **Field** | **Carbon** |
 | ![Field](docs/wallpaper-field.jpg) | ![Carbon](docs/wallpaper-carbon.jpg) |
 | A frozen waterfall, 240 × 128 of the mark's bars, with the mark cleaned out of the noise | Exposure over a fine carbon-fiber weave |
@@ -90,6 +90,15 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 | `--launcher-icon` | Put the mark on the application launcher |
 | `--restore` | Put back what was active before the first `--apply` |
 | `--uninstall` | Restore, then remove every installed file. Fetched fonts are left in place |
+
+## Known limitations
+
+Both come from Oxygen's widget style, so a color scheme can't change them. `--style breeze` avoids both, at the
+cost of the glass.
+
+- In a list that doesn't have keyboard focus, Oxygen dims the selection to about 40% (roughly 1.3–1.5:1 against
+  the list). The focused selection is full strength: 3.5:1 in Ink, 5.2:1 in Paper and 3.7:1 in Carbon.
+- Oxygen doesn't fill the default button in a dialog, so "OK" and "Cancel" look alike. Breeze fills it.
 
 ## How it's built
 

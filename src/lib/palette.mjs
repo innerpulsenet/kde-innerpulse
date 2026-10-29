@@ -97,8 +97,10 @@ export const carbon = {
   mark: '#f43a2a',
   focus: '#f43a2a',
   hover: '#8b9097',
-  select: '#4a5058', // gunmetal
-  selectAlt: '#353a41',
+  // Oxygen paints a selection at about 45% strength in a view that doesn't have focus, so the gunmetal is a
+  // step brighter than it would be under Breeze (white text on it is 6.1:1)
+  select: '#5d636c', // gunmetal
+  selectAlt: '#4a5058',
   selectText: '#ffffff',
   action: '#d12c1e',
   link: '#b38cff',
