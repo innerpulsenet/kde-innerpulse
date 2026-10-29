@@ -43,11 +43,28 @@ These previews are illustrations drawn from the theme's own palette and geometry
 
 ## Install
 
-You need Plasma 6 with Aurorae and the Oxygen widget style, plus Node 20 or newer, librsvg and ImageMagick to build.
-On Kubuntu or Ubuntu:
+You need Plasma 6 with Aurorae and the Oxygen widget style. On Kubuntu or Ubuntu that's
+`sudo apt install kwin-style-aurorae kde-style-oxygen-qt6`.
+
+### From a release (no build tools)
+
+Download `kde-innerpulse-<version>.tar.gz` from the
+[latest release](https://github.com/innerpulsenet/kde-innerpulse/releases/latest). It's already built.
 
 ```bash
-sudo apt install kwin-style-aurorae kde-style-oxygen-qt6 librsvg2-bin imagemagick nodejs
+tar -xzf kde-innerpulse-1.0.0.tar.gz && cd kde-innerpulse-1.0.0
+```
+
+```bash
+./install.sh --fonts --apply ink
+```
+
+### From source
+
+Building also needs Node 20 or newer, librsvg and ImageMagick:
+
+```bash
+sudo apt install librsvg2-bin imagemagick nodejs
 ```
 
 ```bash
