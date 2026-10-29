@@ -1,0 +1,11 @@
+{
+  "name": "kde-innerpulse",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The innerpulse brand as a KDE Plasma 6 theme",
+  "scripts": {
+    "build": "node src/build.mjs",
+    "build:fast": "node src/build.mjs --fast"
+  }
+}
