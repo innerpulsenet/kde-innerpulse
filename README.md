@@ -103,8 +103,9 @@ cost of the glass.
 
 These come from KWin's Aurorae engine, which draws the window decorations:
 
-- Aurorae ignores the animation-speed setting, so `--apply` scales the decorations' fades by the speed set at
-  that moment (instant turns them off). If you change the speed later, run `--apply` again.
+- Aurorae ignores the animation-speed setting, so `install.sh` scales the decorations' fades by the speed set at
+  that moment (instant turns them off), on every install or update. If you change the speed later, run
+  `./install.sh` again.
 - A maximized window has no index tick. Aurorae stretches a maximized title bar from one slice, and a tick can't
   survive the stretch.
 - A toggle that is on shows no hover, and the sunken look flashes while you hold the mouse on one that is off.
