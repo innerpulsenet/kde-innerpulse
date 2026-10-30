@@ -3,8 +3,13 @@
 // deep ember and the paper steps of every accent. Carbon is further down.
 //
 // Ember is reserved: the mark, focus rings, the one index tick on a window or popup, the focused task.
-// Selection uses a deep ember fill (white text clears AA on it); links take the desktop family's violet,
-// the one product-family accent allowed beside the pulse.
+// Selection uses the action red (white text 5.1:1); links take the desktop family's violet, the one
+// product-family accent allowed beside the pulse.
+//
+// Selection must be strongly colored, not just dark or light: Chrome and Edge in Qt theme mode don't paint the
+// Qt Highlight as given, they rebuild it as a tonal color and lay it over the page at about two thirds. A
+// low-chroma selection (Carbon's old gunmetal #5d636c) came out #151b27 on dark pages, about 1.04:1 against
+// them. Measured on this desktop: #d12c1e reads 2.4:1 on a black page and #1a73b8 about 2.6:1.
 
 export const ink = {
   id: 'ink',
@@ -27,8 +32,8 @@ export const ink = {
   mark: '#f43a2a',
   focus: '#f43a2a',
   hover: '#9c3a2f',
-  select: '#b3261a',
-  selectAlt: '#8f1f15',
+  select: '#d12c1e', // the action red
+  selectAlt: '#b3261a',
   selectText: '#ffffff',
   action: '#d12c1e',
   link: '#b38cff', // desktop & native · violet
@@ -60,8 +65,8 @@ export const paper = {
   mark: '#cf2a1c',
   focus: '#cf2a1c',
   hover: '#d98a80',
-  select: '#b42418',
-  selectAlt: '#c83a2c',
+  select: '#d12c1e',
+  selectAlt: '#b42418',
   selectText: '#ffffff',
   action: '#d12c1e',
   link: '#6a3fd0',
@@ -74,7 +79,7 @@ export const paper = {
 };
 
 // Carbon: the brand's brushed steel (the chrome masthead's ramp, assets/web/innerpulse-chrome-defs.svg) over cool
-// carbon blacks. Text is steel, selection is gunmetal rather than ember, so ember stays the one signal: the
+// carbon blacks. Text is steel, selection is blued steel rather than ember, so ember stays the one signal: the
 // mark, focus rings, the index ticks. Its glass is brighter, as polished metal would be.
 export const carbon = {
   id: 'carbon',
@@ -97,10 +102,10 @@ export const carbon = {
   mark: '#f43a2a',
   focus: '#f43a2a',
   hover: '#8b9097',
-  // Oxygen paints a selection at about 45% strength in a view that doesn't have focus, so the gunmetal is a
-  // step brighter than it would be under Breeze (white text on it is 6.1:1)
-  select: '#5d636c', // gunmetal
-  selectAlt: '#4a5058',
+  // Blued steel: the deep blue that steel takes when it's heat-tempered. Gunmetal gray was the first choice,
+  // but a gray selection vanishes in Chrome on dark pages (see the note at the top). White text on it is 5.0:1.
+  select: '#1a73b8',
+  selectAlt: '#155f98',
   selectText: '#ffffff',
   action: '#d12c1e',
   link: '#b38cff',

@@ -9,6 +9,7 @@
 //   tasks        task manager states: running, focused (ember bar on the panel side), attention, minimized
 //   viewitem     list highlights in menus and launchers: the index turns ember on hover
 import { frame, maskFrame, shadowFrame, hints, doc, colorStyle, rect, spacer, n, quarter } from './svg.mjs';
+import { GLASS } from './glass.mjs';
 
 const cls = (c, op = 1) => `class="ColorScheme-${c}" fill="currentColor"${op < 1 ? ` opacity="${n(op)}"` : ''}`;
 
@@ -19,11 +20,6 @@ const cls = (c, op = 1) => `class="ColorScheme-${c}" fill="currentColor"${op < 1
 // faint shade sits inside the bottom edge, so each surface reads as a slab with a bevel. All of it is white or
 // black at low alpha, never ember, and it lives only in the top and bottom rows, which tile horizontally, so it
 // holds at any width.
-const GLASS = {
-  ink: { sheen: 0.075, lip: 0.13, shade: 0.35 },
-  paper: { sheen: 0.55, lip: 0.85, shade: 0.07 },
-  carbon: { sheen: 0.09, lip: 0.17, shade: 0.4 },
-};
 
 function glassPaint(t, name, c, f, r, border) {
   const g = GLASS[t.id];
