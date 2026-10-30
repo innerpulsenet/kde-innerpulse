@@ -113,9 +113,12 @@ export const maskFrame = (o) => frame({ ...o, prefix: 'mask-', border: 0, fill: 
  * the frame, `inner` how far each slice reaches under the frame (Plasma lays the slices around the frame
  * and overlaps them by the shadow-hint margins). `dy` pushes the shadow down (it is thicker below).
  */
+// The falloff of every drop shadow (Plasma's frames here, the window decoration in aurorae.mjs): [offset, weight].
+export const SHADOW_STOPS = [[0, 1], [0.25, 0.62], [0.5, 0.3], [0.75, 0.1], [1, 0]];
+
 export function shadowFrame({ x, y, s, inner = 6, r = 4, rgb = [0, 0, 0], alpha = 0.5, dy = 0, uid }) {
   const [R, G, B] = rgb;
-  const stops = (a) => [[0, 1], [0.25, 0.62], [0.5, 0.3], [0.75, 0.1], [1, 0]]
+  const stops = (a) => SHADOW_STOPS
     .map(([o, k]) => `<stop offset="${o}" stop-color="rgb(${R},${G},${B})" stop-opacity="${n(a * k)}"/>`).join('');
   const T = s - dy, Bt = s + dy; // reach above and below
   const C = { l: s, t: T, r: s, b: Bt };

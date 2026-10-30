@@ -7,6 +7,7 @@
 #                                    from the google/fonts repository into ~/.local/share/fonts/innerpulse
 #   ./install.sh --launcher-icon     set the application launcher's icon to the mark
 #   ./install.sh --style breeze      with --apply: flat Breeze widgets instead of Oxygen's glass (default oxygen)
+#   ./install.sh --frosted-titlebar  with --apply: the active title bar is translucent, blurred behind (default opaque)
 #   ./install.sh --restore           switch back to what was active before the last --apply
 #   ./install.sh --uninstall         --restore, then remove every installed file
 #
@@ -35,6 +36,9 @@ INSTALLED=(
   "konsole/innerpulse-carbon.profile"
   "aurorae/themes/innerpulse-ink"
   "aurorae/themes/innerpulse-paper"
+  "aurorae/themes/innerpulse-ink-frosted"
+  "aurorae/themes/innerpulse-paper-frosted"
+  "aurorae/themes/innerpulse-carbon-frosted"
   "wallpapers/innerpulse-exposure"
   "wallpapers/innerpulse-horizon"
   "wallpapers/innerpulse-field"
@@ -68,6 +72,11 @@ do_install() {
     sed -i 's/^Font=JetBrains Mono,/Font=Hack,/' "$DATA"/konsole/innerpulse-{ink,paper,carbon}.profile
   fi
   have gtk-update-icon-cache && gtk-update-icon-cache -q -t "$DATA/icons/hicolor" 2>/dev/null || true
+  scale_aurorae_animation
+  # KWin reads a decoration's rc when it loads it: reload if an innerpulse one is in use, so an update shows now
+  if have kreadconfig6 && [[ $(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme) == __aurorae__svg__innerpulse-* ]]; then
+    reconfigure_kwin
+  fi
   say "installed into $DATA"
 }
 
@@ -133,6 +142,22 @@ save_previous() {
   } > "$STATE/previous.conf"
 }
 
+# Aurorae's crossfade and button fades take the theme's Animation= value as is, ignoring the animation-speed
+# setting, so scale every installed innerpulse decoration by it here (0 = instant). do_install calls this right
+# after copying the generated value in, so it starts from it each time and an update keeps the fades off when
+# animations are off. It edits only the installed rc files, never a setting. A snapshot: re-run the install after
+# moving the slider.
+scale_aurorae_animation() {
+  local f ms rc
+  have kreadconfig6 || return 0
+  f=$(kreadconfig6 --file kdeglobals --group KDE --key AnimationDurationFactor --default 1)
+  for rc in "$DATA"/aurorae/themes/innerpulse-*/innerpulse-*rc; do
+    [[ -f "$rc" ]] || continue
+    ms=$(LC_ALL=C awk -v f="$f" -F= '/^Animation=/ { printf "%d", $2 * f + 0.5 }' "$rc")
+    [[ -n "$ms" ]] && sed -i "s/^Animation=.*/Animation=$ms/" "$rc"
+  done
+}
+
 reconfigure_kwin() {
   if have qdbus6; then qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true; fi
 }
@@ -160,7 +185,7 @@ do_apply() {
   local desktoptheme=innerpulse; [[ $variant == ink ]] || desktoptheme="innerpulse-$variant"
   plasma-apply-desktoptheme "$desktoptheme" >/dev/null || true
   kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
-  kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "__aurorae__svg__innerpulse-$variant"
+  kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "__aurorae__svg__innerpulse-$variant$DECO"
   kwriteconfig6 --file ksplashrc --group KSplash --key Theme net.innerpulse.ink
   kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
   # Widgets: Oxygen's glass (top-lit window gradient, raised glass buttons) recolored by the scheme, or Breeze.
@@ -272,12 +297,13 @@ do_uninstall() {
   say "removed (fonts in $FONTDIR, if fetched, are left in place)"
 }
 
-apply="" fonts=0 icon=0 action=install STYLE=Oxygen
+apply="" fonts=0 icon=0 action=install STYLE=Oxygen DECO="" style_given=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply) apply=ink; case "${2:-}" in ink|paper|carbon) apply="$2"; shift ;; esac ;;
     --fonts) fonts=1 ;;
-    --style) case "${2:-}" in oxygen) STYLE=Oxygen ;; breeze) STYLE=Breeze ;; *) die "--style takes oxygen or breeze" ;; esac; shift ;;
+    --style) case "${2:-}" in oxygen) STYLE=Oxygen ;; breeze) STYLE=Breeze ;; *) die "--style takes oxygen or breeze" ;; esac; style_given=1; shift ;;
+    --frosted-titlebar) DECO=-frosted ;;
     --launcher-icon) icon=1 ;;
     --restore) action=restore ;;
     --uninstall) action=uninstall ;;
@@ -286,6 +312,9 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+# both pick what --apply sets; without it they would be accepted and do nothing
+[[ -n "$DECO" && -z "$apply" ]] && die "--frosted-titlebar works with --apply"
+[[ -n "$style_given" && -z "$apply" ]] && die "--style works with --apply"
 
 case "$action" in
   restore) do_restore; exit 0 ;;

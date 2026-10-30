@@ -24,7 +24,7 @@ These previews are illustrations drawn from the theme's own palette and geometry
 | Color schemes `InnerpulseInk`, `InnerpulsePaper`, `InnerpulseCarbon` | Warm ink surfaces, paper, or carbon with brushed-steel text. Three text grays that clear WCAG AA. Selection is the action red with white text (5.1:1), or blued steel at 5.0:1 in Carbon. Focus rings are ember, links violet, and status colors mint, amber and soft red. Every text, focus and hover pair in the schemes and Konsole sets is checked when the theme is built, and the build fails if one drops below WCAG AA (the GTK unfocused selection, under Known limitations, is the documented exception) |
 | Plasma themes `innerpulse`, `innerpulse-paper`, `innerpulse-carbon` | One per variant: colors follow the active scheme, while the glass and shadows are tuned to each ground. Panels have machined 4 px corners, a hairline and a faint graduated scale along the long edge. Popups carry one ember index tick at the top left, with a faint band under their headers. In menus, launchers and combo box lists the row index turns ember. The focused task gets an ember bar on the panel side; tasks that want attention get amber. The pager raises the current desktop in glass. Check boxes, radio buttons, switches, sliders, progress bars and scroll bars are drawn in steel rather than the selection color (Plasma still colors a stepped slider's tick marks itself); the busy indicator is a turning steel arc, never the mark |
 | Glass | Surfaces are lit from above: a sheen through the top edge, a 1 px highlight lip and a faint shade at the foot. Panels and popups are frosted (about three quarters ground, blurred behind). Apps use Oxygen's widget style, recolored by the scheme, for raised glass buttons, tabs and progress bars. `--style breeze` gives flat widgets instead |
-| Window decorations (Aurorae) | Glass title bar, hairline ring and soft shadow, with the ember index tick on the active window only. Buttons lift onto a glass tile on hover; close lifts onto the action red |
+| Window decorations (Aurorae) | Glass title bar, hairline ring and a soft shadow lit from above, with the ember index tick on the active window only. Buttons lift onto a glass tile on hover; close lifts onto the action red. Toggles that are on (all desktops, keep above or below, shade) sit sunken with a bar under the glyph. Each variant also comes as `innerpulse … (frosted title bar)`, whose active title bar is translucent and blurred behind |
 | Wallpapers | **Exposure** (default), **Horizon**, **Field**, **Ribbon**, and **Carbon**. All but Carbon come in ink and paper renditions, and Plasma picks the one that matches the scheme. Each caption states what's actually drawn |
 | Splash screen | The mark draws itself in, then beats at a 2.4 s working tempo while Plasma starts, over a working line that shows the real elapsed time. It holds still when animations are off |
 | Global themes | `innerpulse Ink`, `innerpulse Paper` and `innerpulse Carbon` in System Settings → Colors & Themes → Global Theme. None of them touches your panel layout |
@@ -86,6 +86,7 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 | (none) | Copy the theme into place. Nothing on screen changes |
 | `--apply ink`, `paper` or `carbon` | Switch the desktop to that variant. Your previous global theme, colors, accent color, decoration, splash, widget style, Konsole profile and fonts are saved first. A custom or wallpaper accent is switched off, since it would retint the selection |
 | `--style breeze` | With `--apply`: flat Breeze widgets instead of Oxygen's glass |
+| `--frosted-titlebar` | With `--apply`: the frosted window decoration, whose active title bar is translucent and blurred behind. The default is opaque |
 | `--fonts` | Fetch Inter, Instrument Sans, JetBrains Mono and Syne (SIL OFL) into `~/.local/share/fonts/innerpulse`. With them installed, `--apply` sets the interface and fixed-width fonts |
 | `--launcher-icon` | Put the mark on the application launcher |
 | `--restore` | Put back what was active before the first `--apply` |
@@ -104,6 +105,16 @@ both, at the cost of the glass.
   and Breeze GTK draws the selected text in the view's background color. That selection, and the text in it,
   is about 1.3:1 in Ink, 1.6:1 in Paper and 1.4:1 in Carbon. KDE derives these colors from the scheme, so the
   only lever is the selection color itself.
+
+These come from KWin's Aurorae engine, which draws the window decorations:
+
+- Aurorae ignores the animation-speed setting, so `install.sh` scales the decorations' fades by the speed set at
+  that moment (instant turns them off), on every install or update. If you change the speed later, run
+  `./install.sh` again.
+- A maximized window has no index tick. Aurorae stretches a maximized title bar from one slice, and a tick can't
+  survive the stretch.
+- A toggle that is on shows no hover, and the sunken look flashes while you hold the mouse on one that is off.
+  Aurorae uses one state for both pressed and on.
 
 ## How it's built
 
