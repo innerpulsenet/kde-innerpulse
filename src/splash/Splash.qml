@@ -1,13 +1,13 @@
 /*
     innerpulse splash screen.
 
-    Ink ground and the mark, standing exactly where the Exposure wallpaper's resting mark will be, with the
-    wordmark under it and a working line at the foot. The mark fades in at rest, holds one still beat, then
-    beats at the working tempo, one pulse every 2.4 s, while Plasma starts. The line states what is happening
-    and how long it has taken. When start-up is done the wordmark and the line fade, the pulse in flight
-    finishes and the mark holds at rest, so KWin's login fade (an opacity fade of this window) dissolves the
-    ink into the desktop around a still mark. With animations turned off the mark holds still throughout and
-    the timer counts whole seconds.
+    Ink ground and the mark, standing where the Exposure wallpaper's resting mark will be (centered instead on
+    a portrait screen, which crops that mark away), with the wordmark under it and a working line at the foot.
+    The mark fades in at rest, holds one still beat, then beats at the working tempo, one pulse every 2.4 s,
+    while Plasma starts. The line states what is happening and how long it has taken. When start-up is done
+    the wordmark and the line fade, the pulse in flight finishes and the mark settles to rest where the
+    wallpaper's mark will appear, so the handoff to the desktop keeps it in place. With animations turned off
+    the mark holds still throughout and the timer counts whole seconds.
 
     Values tagged with an @KEY@ comment are the brand's, filled in by src/build.mjs from src/lib/mark.mjs,
     palette.mjs and wallpaper-art.mjs; the literals here are the same values, so this file also runs as it is.
@@ -50,6 +50,13 @@ Rectangle {
     readonly property real markBox: 560 /*@EXPOSURE_BOX@*/
     // the wallpaper's scale under Plasma's default fill, "Scaled and cropped"
     readonly property real k: Math.max(width / artW, height / artH)
+    // where that puts the mark's center on this screen
+    readonly property real artCx: width / 2 + (markX - 0.5) * artW * k
+    readonly property real artCy: height / 2 + (markY - 0.5) * artH * k
+    // A portrait screen crops the wallpaper's mark away (or nearly), so there the mark has no place to hold:
+    // it stands centered instead, 2 grid units above the middle, at a size the screen's width can carry.
+    readonly property bool centered: width < height || artCx < 0 || artCx > width || artCy < 0 || artCy > height
+    readonly property real margin: Kirigami.Units.gridUnit
 
     // seconds since the splash appeared, from the wall clock, so the readout stays true however long start-up takes
     property real t: 0
@@ -98,11 +105,15 @@ Rectangle {
 
         Item {
             id: mark
-            readonly property real size: root.markBox * root.k
+            readonly property real size: root.centered ? Math.min(root.markBox * root.k, Math.min(root.width, root.height) * 0.4)
+                                                       : root.markBox * root.k
             readonly property real s: size / root.box
             width: size; height: size
-            x: root.width / 2 + (root.markX - 0.5) * root.artW * root.k - size / 2
-            y: root.height / 2 + (root.markY - 0.5) * root.artH * root.k - size / 2
+            // on the wallpaper's mark, kept whole inside a grid-unit margin; or centered
+            x: root.centered ? (root.width - size) / 2
+                             : Math.max(root.margin, Math.min(root.width - size - root.margin, root.artCx - size / 2))
+            y: root.centered ? root.height / 2 - Kirigami.Units.gridUnit * 2 - size / 2
+                             : Math.max(root.margin, Math.min(root.height - size - root.margin, root.artCy - size / 2))
 
             Repeater {
                 model: root.beats + 1
@@ -129,7 +140,7 @@ Rectangle {
             Image {
                 id: wordmark
                 source: "images/wordmark.svg"
-                x: mark.x + (mark.width - width) / 2
+                x: Math.max(root.margin, Math.min(root.width - width - root.margin, mark.x + (mark.width - width) / 2))
                 y: mark.y + mark.height + Kirigami.Units.gridUnit * 1.5
                 // the outlined wordmark, 790 × 120 units, set at 1.6 grid units of cap height
                 sourceSize.height: Kirigami.Units.gridUnit * 2.2

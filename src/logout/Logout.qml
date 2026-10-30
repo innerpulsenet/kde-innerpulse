@@ -5,14 +5,17 @@
     run time from the system's copy, so nothing of it is copied here. This file adds the brand on top: the
     ink ground in place of Breeze's black, the countdown set in JetBrains Mono (its words and numbers are
     Breeze's, so it always says what will happen and when), and the mark above the avatar, beating at the
-    ambient tempo while the choice waits (AmbientMark.qml; still when animations are turned off). If Breeze's
-    prompt cannot be loaded, a plain screen says so and Escape or a click goes back.
+    ambient tempo while the choice waits (AmbientMark.qml; still when animations are turned off). Breeze's
+    prompt is found through the data dirs, so a Plasma installed under another prefix works too. If it cannot
+    be loaded, a plain screen says so and still offers Log Out, Restart and Shut Down; Escape goes back.
 
     The greeter connects to the signals below by name, so the wrapper declares them and passes the loaded
     prompt's signals through. Values tagged with an @KEY@ comment are filled in by src/build.mjs.
 */
 
+import QtCore
 import QtQuick
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
 Item {
@@ -37,12 +40,18 @@ Item {
     readonly property color ember: "#f43a2a" /*@EMBER@*/
     readonly property color text1: "#ece7df" /*@TEXT@*/
 
-    // Breeze's prompt, where Plasma installs it (the usual path on every distribution that ships Plasma 6)
+    // Breeze's prompt, wherever the data dirs put it (/usr/share on most distributions, another prefix on some)
+    readonly property string breeze: "plasma/look-and-feel/org.kde.breeze.desktop/contents/logout/Logout.qml"
+    readonly property url breezeUrl: StandardPaths.locate(StandardPaths.GenericDataLocation, breeze)
+    // what the greeter allows, when it says: Breeze reads the same two context properties
+    readonly property bool mayLogout: typeof canLogout === "undefined" || canLogout
+    readonly property bool mayShutdown: typeof maysd === "undefined" || maysd
+
     Loader {
         id: prompt
         anchors.fill: parent
         focus: true
-        source: "file:///usr/share/plasma/look-and-feel/org.kde.breeze.desktop/contents/logout/Logout.qml"
+        source: root.breezeUrl.toString() !== "" ? root.breezeUrl : "file:///usr/share/" + root.breeze
         onLoaded: {
             const p = item;
             p.logoutRequested.connect(root.logoutRequested);
@@ -81,6 +90,7 @@ Item {
         color: root.ember
     }
 
+    // Breeze's prompt is missing: say so, and still let the session end, or go back
     Rectangle {
         anchors.fill: parent
         visible: prompt.status === Loader.Error
@@ -91,14 +101,43 @@ Item {
             anchors.fill: parent
             onClicked: root.cancelRequested()
         }
-        Text {
+        Column {
             anchors.centerIn: parent
-            width: Math.min(parent.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 30)
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-            color: root.text1
-            font.family: "JetBrains Mono"
-            text: "The logout prompt could not be loaded. Press Escape or click to go back."
+            spacing: Kirigami.Units.gridUnit * 1.5
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(root.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 30)
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                color: root.text1
+                font.family: "JetBrains Mono"
+                text: "The logout prompt could not be loaded. Choose below, or press Escape or click elsewhere to go back."
+            }
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: Kirigami.Units.largeSpacing
+
+                QQC2.Button {
+                    text: "Log Out"
+                    visible: root.mayLogout
+                    onClicked: root.logoutRequested()
+                }
+                QQC2.Button {
+                    text: "Restart"
+                    visible: root.mayShutdown
+                    onClicked: root.rebootRequested()
+                }
+                QQC2.Button {
+                    text: "Shut Down"
+                    visible: root.mayShutdown
+                    onClicked: root.haltRequested()
+                }
+                QQC2.Button {
+                    text: "Cancel"
+                    onClicked: root.cancelRequested()
+                }
+            }
         }
     }
 }

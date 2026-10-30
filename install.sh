@@ -202,10 +202,11 @@ forget_ours() {
   done
 }
 
-# On uninstall: when a desktop still shows an innerpulse wallpaper, switch every screen to the previous global
-# theme's wallpaper (or Plasma's Next), since the files are about to go.
+# On uninstall: switch each screen that still shows an innerpulse wallpaper to the previous global theme's
+# wallpaper (or Plasma's Next), since the files are about to go. Screens showing anything else keep it
+# (plasma-apply-wallpaperimage would set every screen, so this asks plasmashell for only the ones that are ours).
 reset_wallpaper_if_ours() {
-  local lnf="$1" rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc" fb="" d
+  local lnf="$1" rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc" fb="" d n=""
   [[ -f "$rc" ]] && grep -qF "Image=file://$DATA/wallpapers/innerpulse-" "$rc" || return 0
   if [[ -n "$lnf" ]]; then
     for d in "$DATA" /usr/share; do
@@ -215,8 +216,20 @@ reset_wallpaper_if_ours() {
     done
   fi
   [[ -n "$fb" && -d "/usr/share/wallpapers/$fb" ]] || fb=Next
-  if [[ -d "/usr/share/wallpapers/$fb" ]] && plasma-apply-wallpaperimage "/usr/share/wallpapers/$fb" >/dev/null 2>&1; then
-    say "desktop wallpaper reset to $fb"
+  if [[ -d "/usr/share/wallpapers/$fb" ]] && have qdbus6; then
+    n="$(qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
+      let n = 0;
+      for (const d of desktops()) {
+        if (d.wallpaperPlugin !== 'org.kde.image') continue;
+        d.currentConfigGroup = ['Wallpaper', 'org.kde.image', 'General'];
+        if (String(d.readConfig('Image', '')).indexOf('$DATA/wallpapers/innerpulse-') < 0) continue;
+        d.writeConfig('Image', 'file:///usr/share/wallpapers/$fb');
+        n++;
+      }
+      print(n);" 2>/dev/null)" || n=""
+  fi
+  if [[ "$n" =~ ^[0-9]+$ ]]; then
+    if (( n > 0 )); then say "wallpaper reset to $fb on $n screen(s) that showed innerpulse"; fi
   else
     say "the desktop still shows an innerpulse wallpaper, which is being removed: choose another in System Settings"
   fi
