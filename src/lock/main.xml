@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name=""/>
+
+  <group name="General">
+    <entry name="Image" type="String">
+      <label>The ground: a folder of WxH.png renditions of the lock composition, or one image</label>
+      <default></default>
+    </entry>
+    <entry name="Variant" type="String">
+      <label>Which ground the theme applied (ink, paper or carbon): sets the mark's color</label>
+      <default>ink</default>
+    </entry>
+    <entry name="BeatOnLock" type="Bool">
+      <label>Let the mark beat while the screen is locked</label>
+      <default>true</default>
+    </entry>
+  </group>
+
+</kcfg>

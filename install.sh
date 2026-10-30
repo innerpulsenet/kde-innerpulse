@@ -47,6 +47,9 @@ INSTALLED=(
   "wallpapers/innerpulse-horizon"
   "wallpapers/innerpulse-field"
   "wallpapers/innerpulse-ribbon"
+  "wallpapers/innerpulse-lock"
+  "wallpapers/innerpulse-lock-carbon"
+  "plasma/wallpapers/net.innerpulse.lock"
   "konsole/InnerpulseInk.colorscheme"
   "konsole/InnerpulsePaper.colorscheme"
   "konsole/innerpulse-ink.profile"
@@ -59,12 +62,58 @@ INSTALLED=(
   "icons/hicolor/48x48/apps/innerpulse.svg"
 )
 
+# Settings --apply sets beyond the global theme, saved before the first apply and put back by --restore:
+#   name|file|group/subgroup/…|key|ours
+# "ours" is a pattern for values only this theme writes. A saved value that matches it is deleted on restore rather
+# than written back, and when nothing was saved (state from an older install.sh) a current value that matches it
+# is deleted too.
+OURS_IMAGE="file://$DATA/wallpapers/innerpulse-*"
+TRACKED=(
+  # the lock screen: the live-mark plugin, its settings, and the stock image plugin's image (the fallback)
+  "lockplugin|kscreenlockerrc|Greeter|WallpaperPlugin|net.innerpulse.lock"
+  "lockbeatimage|kscreenlockerrc|Greeter/Wallpaper/net.innerpulse.lock/General|Image|*"
+  "lockbeatvariant|kscreenlockerrc|Greeter/Wallpaper/net.innerpulse.lock/General|Variant|*"
+  "lockimage|kscreenlockerrc|Greeter/Wallpaper/org.kde.image/General|Image|$OURS_IMAGE"
+  "lockpreview|kscreenlockerrc|Greeter/Wallpaper/org.kde.image/General|PreviewImage|$OURS_IMAGE"
+  # window open and close: a tighter scale
+  "scaleduration|kwinrc|Effect-scale|Duration|"
+  "scalein|kwinrc|Effect-scale|InScale|"
+  "scaleout|kwinrc|Effect-scale|OutScale|"
+  # launch feedback: the app icon sits still by the pointer instead of bouncing
+  "launchbounce|klaunchrc|BusyCursorSettings|Bouncing|"
+  "launchblink|klaunchrc|BusyCursorSettings|Blinking|"
+  # Oxygen's own animation settings, which follow Plasma's animation speed only through these
+  "oxyanim|oxygenrc|Style|AnimationsEnabled|"
+  "oxyprogress|oxygenrc|Style|ProgressBarAnimated|"
+  "oxygeneric|oxygenrc|Style|GenericAnimationsDuration|"
+  "oxyprogressms|oxygenrc|Style|ProgressBarAnimationsDuration|"
+  "oxymenu|oxygenrc|Style|MenuAnimationType|"
+  "oxymenums|oxygenrc|Style|MenuAnimationsDuration|"
+  "oxymenubar|oxygenrc|Style|MenuBarAnimationType|"
+  "oxymenubarms|oxygenrc|Style|MenuBarAnimationsDuration|"
+  "oxytoolbar|oxygenrc|Style|ToolBarAnimationType|"
+  "oxytoolbarms|oxygenrc|Style|ToolBarAnimationsDuration|"
+)
+
 say() { printf '\033[38;2;244;58;42m▍\033[0m %s\n' "$*"; }
 die() { printf 'install.sh: %s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 # Is a font family installed? (grep without -q reads all of fc-list's output: with -q it exits on the first
 # match, fc-list dies of SIGPIPE, and under pipefail the check reads as false.)
 has_font() { fc-list : family | grep -iE "$1" >/dev/null; }
+# cfg FILE GROUP/SUBGROUP/… KEY            read one key
+# cfg FILE GROUP/SUBGROUP/… KEY VALUE      write it (or --delete it)
+# It works on the user's own file by its full path, so a read never returns a distribution's default (Kubuntu
+# ships a lock screen image in /usr/share/kubuntu-default-settings) and a delete removes the line rather than
+# writing a [$d] marker that would hide that default.
+cfg() {
+  local file="${XDG_CONFIG_HOME:-$HOME/.config}/$1" path="$2" key="$3" g=() part parts
+  shift 3
+  IFS=/ read -ra parts <<< "$path"
+  for part in "${parts[@]}"; do g+=(--group "$part"); done
+  if (( $# )); then kwriteconfig6 --file "$file" "${g[@]}" --key "$key" "$@"
+  else kreadconfig6 --file "$file" "${g[@]}" --key "$key"; fi
+}
 
 do_install() {
   [[ -d "$DIST" ]] || die "dist/ is missing: run  node src/build.mjs  first"
@@ -114,18 +163,9 @@ do_fonts() {
 
 save_previous() {
   mkdir -p "$STATE"
-  if [[ -f "$STATE/previous.conf" ]]; then # keep the state from before the first apply
-    # State saved by an older install.sh has no accent lines. That script never touched the accent, so the
-    # current one is still the user's own: add it before this apply clears it.
-    if ! grep -q '^accent=' "$STATE/previous.conf"; then
-      {
-        echo "accent=$(kreadconfig6 --file kdeglobals --group General --key AccentColor)"
-        echo "accentwall=$(kreadconfig6 --file kdeglobals --group General --key accentColorFromWallpaper)"
-      } >> "$STATE/previous.conf"
-    fi
-    return
-  fi
-  {
+  local f="$STATE/previous.conf"
+  # keep the state from before the first apply
+  [[ -f "$f" ]] || {
     echo "lookandfeel=$(kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage)"
     echo "colorscheme=$(kreadconfig6 --file kdeglobals --group General --key ColorScheme)"
     echo "accent=$(kreadconfig6 --file kdeglobals --group General --key AccentColor)"
@@ -147,7 +187,83 @@ save_previous() {
     echo "toolBarFont=$(kreadconfig6 --file kdeglobals --group General --key toolBarFont)"
     echo "smallestReadableFont=$(kreadconfig6 --file kdeglobals --group General --key smallestReadableFont)"
     echo "activeFont=$(kreadconfig6 --file kdeglobals --group WM --key activeFont)"
-  } > "$STATE/previous.conf"
+  } > "$f"
+  # State saved by an older install.sh has no accent lines. That script never touched the accent, so the current
+  # one is still the user's own: add it before this apply clears it.
+  if ! grep -q '^accent=' "$f"; then
+    echo "accent=$(kreadconfig6 --file kdeglobals --group General --key AccentColor)" >> "$f"
+    echo "accentwall=$(kreadconfig6 --file kdeglobals --group General --key accentColorFromWallpaper)" >> "$f"
+  fi
+  # The tracked settings this state does not hold yet (it was saved by an older install.sh): no earlier version
+  # changed them, so their values now are still the ones from before the first apply. The lock image keys are
+  # the exception, and their "ours" pattern catches that on restore.
+  local row name file path key
+  for row in "${TRACKED[@]}"; do
+    IFS='|' read -r name file path key _ <<< "$row"
+    grep -q "^$name=" "$f" || echo "$name=$(cfg "$file" "$path" "$key")" >> "$f"
+  done
+}
+
+# Put the tracked settings back: the saved value, or no key at all when there was none (or it was ours).
+restore_tracked() {
+  local row name file path key ours cur
+  for row in "${TRACKED[@]}"; do
+    IFS='|' read -r name file path key ours <<< "$row"
+    if [[ -v "p[$name]" ]]; then
+      # shellcheck disable=SC2053 # $ours is a pattern
+      if [[ -n "${p[$name]}" && ( -z "$ours" || "${p[$name]}" != $ours ) ]]; then cfg "$file" "$path" "$key" "${p[$name]}"
+      else cfg "$file" "$path" "$key" --delete; fi
+    elif [[ -n "$ours" ]]; then
+      cur="$(cfg "$file" "$path" "$key")"
+      # shellcheck disable=SC2053
+      if [[ -n "$cur" && "$cur" == $ours ]]; then cfg "$file" "$path" "$key" --delete; fi
+    fi
+  done
+}
+
+# Delete any tracked setting that still names this theme, saved state or not: run before the files go.
+forget_ours() {
+  local row name file path key ours cur
+  for row in "${TRACKED[@]}"; do
+    IFS='|' read -r name file path key ours <<< "$row"
+    [[ -n "$ours" ]] || continue
+    cur="$(cfg "$file" "$path" "$key")"
+    # shellcheck disable=SC2053
+    if [[ -n "$cur" && "$cur" == $ours ]]; then cfg "$file" "$path" "$key" --delete; fi
+  done
+}
+
+# On uninstall: switch each screen that still shows an innerpulse wallpaper to the previous global theme's
+# wallpaper (or Plasma's Next), since the files are about to go. Screens showing anything else keep it
+# (plasma-apply-wallpaperimage would set every screen, so this asks plasmashell for only the ones that are ours).
+reset_wallpaper_if_ours() {
+  local lnf="$1" rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc" fb="" d n=""
+  [[ -f "$rc" ]] && grep -qF "Image=file://$DATA/wallpapers/innerpulse-" "$rc" || return 0
+  if [[ -n "$lnf" ]]; then
+    for d in "$DATA" /usr/share; do
+      [[ -f "$d/plasma/look-and-feel/$lnf/contents/defaults" ]] || continue
+      fb="$(kreadconfig6 --file "$d/plasma/look-and-feel/$lnf/contents/defaults" --group Wallpaper --key Image)"
+      break
+    done
+  fi
+  [[ -n "$fb" && -d "/usr/share/wallpapers/$fb" ]] || fb=Next
+  if [[ -d "/usr/share/wallpapers/$fb" ]] && have qdbus6; then
+    n="$(qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
+      let n = 0;
+      for (const d of desktops()) {
+        if (d.wallpaperPlugin !== 'org.kde.image') continue;
+        d.currentConfigGroup = ['Wallpaper', 'org.kde.image', 'General'];
+        if (String(d.readConfig('Image', '')).indexOf('$DATA/wallpapers/innerpulse-') < 0) continue;
+        d.writeConfig('Image', 'file:///usr/share/wallpapers/$fb');
+        n++;
+      }
+      print(n);" 2>/dev/null)" || n=""
+  fi
+  if [[ "$n" =~ ^[0-9]+$ ]]; then
+    if (( n > 0 )); then say "wallpaper reset to $fb on $n screen(s) that showed innerpulse"; fi
+  else
+    say "the desktop still shows an innerpulse wallpaper, which is being removed: choose another in System Settings"
+  fi
 }
 
 # Aurorae's crossfade and button fades take the theme's Animation= value as is, ignoring the animation-speed
@@ -202,10 +318,41 @@ do_apply() {
   # off; Paper and Carbon keep it.
   local gradient=true; [[ $variant == ink ]] && gradient=false
   kwriteconfig6 --file oxygenrc --group Common --key UseBackgroundGradient "$gradient"
+  # Oxygen ignores Plasma's animation speed (System Settings → Animation speed), so mirror it into Oxygen's own
+  # settings: off at Instant, otherwise its durations scaled by the same factor, with fades rather than slides.
+  # It is read here, once: after changing the speed, run --apply again (and restart open apps).
+  if [[ $STYLE == Oxygen ]]; then
+    local factor; factor="$(kreadconfig6 --file kdeglobals --group KDE --key AnimationDurationFactor --default 1)"
+    if awk -v f="$factor" 'BEGIN { exit !(f + 0 <= 0) }'; then
+      cfg oxygenrc Style AnimationsEnabled false
+      cfg oxygenrc Style ProgressBarAnimated false
+    else
+      ms() { awk -v b="$1" -v f="$factor" 'BEGIN { printf "%d", b * f + 0.5 }'; }
+      cfg oxygenrc Style AnimationsEnabled true
+      cfg oxygenrc Style ProgressBarAnimated true
+      cfg oxygenrc Style GenericAnimationsDuration "$(ms 120)"
+      cfg oxygenrc Style ProgressBarAnimationsDuration "$(ms 200)"
+      cfg oxygenrc Style MenuAnimationType ME_FADE
+      cfg oxygenrc Style MenuAnimationsDuration "$(ms 120)"
+      cfg oxygenrc Style MenuBarAnimationType MB_FADE
+      cfg oxygenrc Style MenuBarAnimationsDuration "$(ms 120)"
+      cfg oxygenrc Style ToolBarAnimationType TB_FADE
+      cfg oxygenrc Style ToolBarAnimationsDuration "$(ms 120)"
+    fi
+  fi
+  # Windows open and close on a short, shallow scale, like an instrument's readout settling (KWin's default is
+  # 200 ms from 80 %). Plasma's animation speed still scales it, and Instant turns it off.
+  cfg kwinrc Effect-scale Duration 160
+  cfg kwinrc Effect-scale InScale 0.94
+  cfg kwinrc Effect-scale OutScale 0.96
+  # Launch feedback: the starting app's icon sits still by the pointer (the "Static" choice) instead of bouncing;
+  # the task bar still shows the launch.
+  cfg klaunchrc BusyCursorSettings Bouncing false
+  cfg klaunchrc BusyCursorSettings Blinking false
   reconfigure_kwin
 
-  # Wallpaper on every screen, and the same image behind the lock screen. The Exposure package carries both
-  # grounds (Plasma shows the ink one under a dark scheme); Carbon has its own.
+  # Wallpaper on every screen. The Exposure package carries both grounds (Plasma shows the ink one under a dark
+  # scheme); Carbon has its own.
   local wp=innerpulse-exposure ground=images
   [[ $variant == ink ]] && ground=images_dark
   [[ $variant == carbon ]] && wp=innerpulse-carbon
@@ -229,9 +376,17 @@ do_apply() {
       say "no qdbus6: every screen keeps the same wallpaper"
     fi
   fi
-  local lockimg="$DATA/wallpapers/$wp/contents/$ground/2560x1440.png"
-  kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image "file://$lockimg"
-  kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key PreviewImage "file://$lockimg"
+  # The lock screen: its own composition (clear of the clock, the prompt and the footer) through the
+  # net.innerpulse.lock plugin, which beats the mark over it. The stock image plugin gets the same ground, so
+  # switching the plugin back in System Settings still shows it.
+  local lockwp=innerpulse-lock
+  [[ $variant == carbon ]] && lockwp=innerpulse-lock-carbon
+  local lockdir="$DATA/wallpapers/$lockwp"
+  cfg kscreenlockerrc Greeter/Wallpaper/org.kde.image/General Image "file://$lockdir"
+  cfg kscreenlockerrc Greeter/Wallpaper/org.kde.image/General PreviewImage "file://$lockdir/contents/$ground/2560x1440.png"
+  cfg kscreenlockerrc Greeter/Wallpaper/net.innerpulse.lock/General Image "file://$lockdir/contents/$ground/"
+  cfg kscreenlockerrc Greeter/Wallpaper/net.innerpulse.lock/General Variant "$variant"
+  cfg kscreenlockerrc Greeter WallpaperPlugin net.innerpulse.lock
 
   # Konsole: new windows open with the matching profile.
   kwriteconfig6 --file konsolerc --group 'Desktop Entry' --key DefaultProfile "innerpulse-$variant.profile"
@@ -312,13 +467,19 @@ do_restore() {
     if [[ -n "${p[$k]}" ]]; then kwriteconfig6 --file kdeglobals --group "$grp" --key "$k" "${p[$k]}"
     else kwriteconfig6 --file kdeglobals --group "$grp" --key "$k" --delete; fi
   done
+  restore_tracked
   reconfigure_kwin
   rm -f "$f"
-  say "restored the settings saved before the last apply (wallpaper and lock screen left as they are)"
+  say "restored the settings saved before the last apply, the lock screen's included (the desktop wallpaper is left as it is)"
 }
 
 do_uninstall() {
+  local lnf=""
+  [[ -f "$STATE/previous.conf" ]] && lnf="$(sed -n 's/^lookandfeel=//p' "$STATE/previous.conf")"
   do_restore
+  # nothing may keep pointing at the files about to be removed, whatever state was saved
+  forget_ours
+  reset_wallpaper_if_ours "$lnf"
   for rel in "${INSTALLED[@]}"; do rm -rf "${DATA:?}/$rel"; done
   rm -rf "$STATE"
   say "removed (fonts in $FONTDIR, if fetched, are left in place)"

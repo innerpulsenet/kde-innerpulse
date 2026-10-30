@@ -3,6 +3,7 @@
 // built from the palette, not a screenshot.
 import { readFileSync } from 'node:fs';
 import { barRects } from './mark.mjs';
+import { EXPOSURE_MARK } from './wallpaper-art.mjs';
 import { n } from './svg.mjs';
 
 const VW = 2560, VH = 1440;
@@ -89,4 +90,25 @@ export function preview(t, wallpaperPng) {
   });
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${VW}" height="${VH}" viewBox="0 0 ${VW} ${VH}"><defs><filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="16"/></filter></defs>\n${out.join('\n')}\n</svg>\n`;
+}
+
+// The splash screen's thumbnail for System Settings: src/splash/Splash.qml laid out at 1920 × 1080 (grid unit
+// 18 px), the mark at rest where the Exposure wallpaper puts it, the wordmark under it, and the working line's
+// verb. The elapsed readout is left out: a frozen number would be invented.
+export function splashPreview(t, wordmarkSvg) {
+  const W = 1920, H = 1080, gu = 18;
+  const k = Math.max(W / VW, H / VH);
+  const box = EXPOSURE_MARK.box * k, s = box / 220;
+  const cx = W / 2 + (EXPOSURE_MARK.mx - 0.5) * VW * k, cy = H / 2 + (EXPOSURE_MARK.my - 0.5) * VH * k;
+  const bars = barRects().map((r) => `<rect x="${n(r.x)}" y="${n(r.y)}" width="${r.w}" height="${n(r.h)}" rx="${r.rx}"/>`).join('');
+  // the wordmark, 790.4 × 120 units, 2.2 grid units tall, 1.5 grid units under the mark's box
+  const wh = gu * 2.2, ww = wh * 790.4 / 120;
+  const wm = `data:image/svg+xml;base64,${Buffer.from(wordmarkSvg).toString('base64')}`;
+  const size = Math.max(12, gu * 0.72);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
+    `<rect width="${W}" height="${H}" fill="${t.ground}"/>` +
+    `<g transform="translate(${n(cx)} ${n(cy)}) scale(${n(s)})" fill="${t.mark}">${bars}</g>` +
+    `<image href="${wm}" x="${n(cx - ww / 2)}" y="${n(cy + box / 2 + gu * 1.5)}" width="${n(ww)}" height="${n(wh)}"/>` +
+    `<text x="${n(cx)}" y="${n(H - gu * 3 - size * 0.3)}" text-anchor="middle" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="${n(size)}" font-weight="500" fill="${t.text}">Starting Plasma…</text>` +
+    `</svg>\n`;
 }

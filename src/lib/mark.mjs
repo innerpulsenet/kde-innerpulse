@@ -21,8 +21,12 @@ export const MARK = {
   corner: 4, // corner radius: machined, not a pill
 };
 
+// The beat's three tempos, in seconds per pulse: ambient where the viewer rests (wallpapers, the lock and logout
+// screens), working while something runs (the splash), busy for a short wait.
+export const TEMPO = { ambient: 4.5, working: 2.4, busy: 1.2 };
+
 export const PULSE = {
-  period: 4.5, // seconds between beats for an ambient mark; the working tempo is 2.4 s
+  period: TEMPO.ambient, // seconds between beats for an ambient mark
   rise: 16, // every bar rises this much as the beat passes
   width: 0.19, // a bar's rise lasts this fraction of the period
   lag: 0.0245, // each bar starts this fraction of the period after the one to its left
