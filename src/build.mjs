@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { themes, ink, paper, carbon } from './lib/palette.mjs';
 import { colorScheme, konsoleScheme, konsoleProfile } from './lib/colors.mjs';
-import { plasmaTheme } from './lib/plasma.mjs';
+import { plasmaTheme, desktopThemeId } from './lib/plasma.mjs';
 import { auroraeTheme } from './lib/aurorae.mjs';
 import { fieldWallpaper, ribbonWallpaper, WALLPAPER_SIZES } from './lib/wallpaper.mjs';
 import { horizonWallpaper, exposureWallpaper } from './lib/wallpaper-art.mjs';
@@ -55,9 +55,12 @@ for (const t of themes) {
 }
 log('color schemes and Konsole');
 
-// 2. Plasma desktop theme (one theme, recolored by whichever scheme is active)
-for (const [rel, data] of Object.entries(plasmaTheme(ink, VERSION))) put(`plasma/desktoptheme/innerpulse/${rel}`, data);
-log('Plasma theme');
+// 2. Plasma desktop themes, one per variant: colors follow the active scheme, but the glass, the shadow and the
+//    hairline weights are baked into the SVGs, so Paper and Carbon each get their own
+for (const t of themes) {
+  for (const [rel, data] of Object.entries(plasmaTheme(t, VERSION))) put(`plasma/desktoptheme/${desktopThemeId(t)}/${rel}`, data);
+}
+log('Plasma themes');
 
 // 3. window decorations
 for (const t of themes) {
@@ -128,7 +131,7 @@ AccentColor=
 Theme=${t.dark ? 'breeze-dark' : 'breeze'}
 
 [plasmarc][Theme]
-name=innerpulse
+name=${desktopThemeId(t)}
 
 [Wallpaper]
 Image=${t.id === 'carbon' ? 'innerpulse-carbon' : 'innerpulse-exposure'}

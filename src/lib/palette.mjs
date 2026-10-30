@@ -10,6 +10,9 @@
 // Qt Highlight as given, they rebuild it as a tonal color and lay it over the page at about two thirds. A
 // low-chroma selection (Carbon's old gunmetal #5d636c) came out #151b27 on dark pages, about 1.04:1 against
 // them. Measured on this desktop: #d12c1e reads 2.4:1 on a black page and #1a73b8 about 2.6:1.
+//
+// The selection color stays in selections. Breeze's Plasma meters, sliders, switches and scroll bars paint
+// it, but this theme ships its own (plasma.mjs), in steel, so Plasma widgets no longer inherit it.
 
 export const ink = {
   id: 'ink',
