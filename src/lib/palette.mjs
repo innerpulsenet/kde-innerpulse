@@ -12,7 +12,8 @@
 // them. Measured on this desktop: #d12c1e reads 2.4:1 on a black page and #1a73b8 about 2.6:1.
 //
 // The selection color stays in selections. Breeze's Plasma meters, sliders, switches and scroll bars paint
-// it, but this theme ships its own (plasma.mjs), in steel, so Plasma widgets no longer inherit it.
+// it, but this theme ships its own (plasma.mjs), in steel, so Plasma's meters, sliders, switches and scroll
+// bars no longer paint it (a stepped slider's tick marks still come from QML).
 
 export const ink = {
   id: 'ink',

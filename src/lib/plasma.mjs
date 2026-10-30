@@ -12,7 +12,7 @@
 //   viewitem     list highlights in menus and launchers: the index turns ember on hover
 //   listitem     rows in combo box lists and plain delegates: the same index on the pressed row
 //   controls     buttons, text fields, tabs, check boxes, radio buttons, switches, sliders, meters, scroll bars
-//   pager        the desktops in the panel's pager: the current one raised, with a short index tick
+//   pager        the desktops in the panel's pager: the current one raised in glass
 //   headings     the band under a popup's title and over its footer
 //   busy         a neutral steel arc that Plasma turns; never the mark, which must not rotate
 //   overlays     the add, remove and open buttons on desktop icons
@@ -499,17 +499,19 @@ function scrollbarSvg(t) {
 
 // --- the pager --------------------------------------------------------------------------------------------
 //
-// Desktops as small sunken tiles; the current one is raised in glass and carries a short index tick at its
-// top left, as the active tab does. Breeze fills it with 60% of the focus color (an ember slab). The corner
-// cells are 8 wide so the tick fits inside its own slice and never lands on the edge slice, which stretches.
+// Desktops as small sunken tiles; the current one is raised in glass with a firmer ring. No index tick: the
+// brand keeps those to the active window, the popup and the active tab. Breeze fills it with 60% of the focus
+// color (an ember slab). The pager insets each desktop's name by the frame's margins, and Breeze's corners are
+// 1 px, so the hints pin the margins at 1 px whatever the corner cells; the names keep Breeze's room.
 function pagerSvg(t) {
   const geo = { L: 8, T: 4, R: 8, B: 4, W: 16, H: 16, r: 2, border: 1 };
-  const tick = (name, c) => (name === 'topleft' ? rect(c.x + geo.r + TICK.gap, c.y, Math.min(TICK.length, c.w - geo.r - TICK.gap), TICK.thickness, cls('ButtonFocus')) : '');
+  const one = { top: 1, bottom: 1, left: 1, right: 1 };
+  // one tile at row y: the frame at x 10, its hints at x 120, as block() lays them out
+  const tile = (prefix, opts) => (y) => frame({ ...geo, prefix, x: 10, y, ...opts }) + '\n' + hints(prefix, one, 120, y);
   return controlDoc(t, [
-    (y) => frame({ ...geo, prefix: 'normal-', x: 10, y, fill: cls('Text', 0.05), stroke: cls('Text', 0.14) }),
-    (y) => frame({ ...geo, prefix: 'hover-', x: 10, y, fill: cls('Text', 0.09), stroke: cls('ButtonHover') }),
-    (y) => frame({ ...geo, prefix: 'active-', x: 10, y, fill: cls('Text', t.dark ? 0.16 : 0.14), stroke: cls('Text', 0.34),
-      extra: (name, c, f) => bevel(t, { raised: true, sheen: false })(name, c, f) + tick(name, c) }),
+    tile('normal-', { fill: cls('Text', 0.05), stroke: cls('Text', 0.14) }),
+    tile('hover-', { fill: cls('Text', 0.09), stroke: cls('ButtonHover') }),
+    tile('active-', { fill: cls('Text', t.dark ? 0.16 : 0.14), stroke: cls('Text', 0.34), extra: bevel(t, { raised: true, sheen: false }) }),
     () => `<rect id="hint-tile-center" x="200" y="10" width="2" height="2" fill="#f0f" opacity=".001"/>`,
   ], '', 40);
 }
