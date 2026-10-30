@@ -9,7 +9,8 @@
 // Selection must be strongly colored, not just dark or light: Chrome and Edge in Qt theme mode don't paint the
 // Qt Highlight as given, they rebuild it as a tonal color and lay it over the page at about two thirds. A
 // low-chroma selection (Carbon's old gunmetal #5d636c) came out #151b27 on dark pages, about 1.04:1 against
-// them. Measured on this desktop: #d12c1e reads 2.4:1 on a black page and #1a73b8 about 2.6:1.
+// them. Measured in Chrome on this desktop: #d12c1e reads 2.4:1 on a black page and 2.2:1 on #161616, #1a73b8
+// 2.1:1 and 1.9:1 (the old gunmetal: 1.1:1 and 1.0:1).
 //
 // Hover is a neutral stone (steel on Carbon), never ember: Oxygen draws hover and focus as the same glow, so an
 // ember hover would be mistaken for the focus ring. Hover and selection are told apart by hue, not lightness

@@ -2,9 +2,8 @@
 import { rgbStr, hexRGB, contrast, ansi, ink } from './palette.mjs';
 
 const hex = (rgb) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
-// a color mixed toward white by k (0..1), and a over b at alpha k
+// a color mixed toward white by k (0..1)
 const lift = (h, k) => hex(hexRGB(h).map((v) => v + (255 - v) * k));
-const mix = (a, b, k) => hex(hexRGB(a).map((v, i) => v * k + hexRGB(b)[i] * (1 - k)));
 // The least-lifted step of a hue that clears min on a fill: role tints inside a selection.
 const onFill = (hue, fill, min = 4.6) => {
   for (let i = 0; i <= 50; i++) { const c = lift(hue, i * 0.02); if (contrast(c, fill) >= min) return c; }
@@ -180,10 +179,10 @@ export function contrastGate(t) {
   need(fails, 'Konsole Color0Intense (dim gray)', a.bright[0], a.bg, 4.5);
   need(fails, 'Konsole Color0Intense (dim gray) on bgIntense', a.bright[0], a.bgIntense, 4.5);
 
-  // Known and documented in the README, not fixable from the scheme: GTK (Breeze, colors from kded gtkconfig)
-  // shows an unfocused selection as 25% of the fill over the window, with the view color as its text.
-  const wash = mix(t.select, v.win, 0.25);
-  need(warns, 'unfocused GTK selection against the view', wash, v.view, 3);
-  need(warns, 'unfocused GTK selected text', v.view, wash, 4.5);
+  // Known and documented in the README, not fixable from the scheme: with ChangeSelectionColor off, kded gtkconfig
+  // gives a backdrop (unfocused) window the full selection fill, but Breeze GTK's gtk.css draws text selected in an
+  // entry on backdrop in theme_unfocused_base_color, the view's own background, rather than white.
+  need(fails, 'unfocused GTK selection against the view', t.select, v.view, 3);
+  need(warns, 'unfocused GTK entry selection text (view color on the fill)', v.view, t.select, 4.5);
   return { fails, warns };
 }

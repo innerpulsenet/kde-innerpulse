@@ -17,11 +17,15 @@ These previews are illustrations drawn from the theme's own palette and geometry
 |---|---|
 | ![widgets in Carbon](docs/widgets-carbon.png) | ![splash](docs/splash.jpg) |
 
+| Lock screen (the mark beats live, every 4.5 s) | Selected text in Chrome, Carbon |
+|---|---|
+| ![lock screen](docs/lockscreen.jpg) | ![Chrome selection](docs/chrome-selection-carbon.png) |
+
 ## What's in it
 
 | Part | What it does |
 |---|---|
-| Color schemes `InnerpulseInk`, `InnerpulsePaper`, `InnerpulseCarbon` | Warm ink surfaces, paper, or carbon with brushed-steel text. Three text grays that clear WCAG AA. Selection is the action red with white text (5.1:1), or blued steel at 5.0:1 in Carbon. Focus rings are ember, links violet, and status colors mint, amber and soft red. Every text, focus and hover pair in the schemes and Konsole sets is checked when the theme is built, and the build fails if one drops below WCAG AA (the GTK unfocused selection, under Known limitations, is the documented exception) |
+| Color schemes `InnerpulseInk`, `InnerpulsePaper`, `InnerpulseCarbon` | Warm ink surfaces, paper, or carbon with brushed-steel text. Three text grays that clear WCAG AA. Selection is the action red with white text (5.1:1), or blued steel at 5.0:1 in Carbon. Focus rings are ember, links violet, and status colors mint, amber and soft red. Every text, focus and hover pair in the schemes and Konsole sets is checked when the theme is built, and the build fails if one drops below WCAG AA (the text in an unfocused GTK entry selection, under Known limitations, is the documented exception) |
 | Plasma themes `innerpulse`, `innerpulse-paper`, `innerpulse-carbon` | One per variant: colors follow the active scheme, while the glass and shadows are tuned to each ground. Panels have machined 4 px corners, a hairline and a faint graduated scale along the long edge. Popups carry one ember index tick at the top left, with a faint band under their headers. In menus, launchers and combo box lists the row index turns ember. The focused task gets an ember bar on the panel side; tasks that want attention get amber. The pager raises the current desktop in glass. Check boxes, radio buttons, switches, sliders, progress bars and scroll bars are drawn in steel rather than the selection color (Plasma still colors a stepped slider's tick marks itself); the busy indicator is a turning steel arc, never the mark |
 | Glass | Surfaces are lit from above: a sheen through the top edge, a 1 px highlight lip and a faint shade at the foot. Panels and popups are frosted (about three quarters ground, blurred behind). Apps use Oxygen's widget style, recolored by the scheme, for raised glass buttons, tabs and progress bars. `--style breeze` gives flat widgets instead |
 | Window decorations (Aurorae) | Glass title bar, hairline ring and a soft shadow lit from above, with the ember index tick on the active window only. Buttons lift onto a glass tile on hover; close lifts onto the action red. Toggles that are on (all desktops, keep above or below, shade) sit sunken with a bar under the glyph. Each variant also comes as `innerpulse … (frosted title bar)`, whose active title bar is translucent and blurred behind |
@@ -118,10 +122,10 @@ both, at the cost of the glass.
   the list). The focused selection is full strength: 3.8:1 in Ink, 4.8:1 in Paper and 3.7:1 in Carbon. The
   color scheme itself doesn't dim an unfocused window's selection.
 - Oxygen doesn't fill the default button in a dialog, so "OK" and "Cancel" look alike. Breeze fills it.
-- In GTK apps, a window without focus shows its selection as a 25% mix of the selection over the window color,
-  and Breeze GTK draws the selected text in the view's background color. That selection, and the text in it,
-  is about 1.3:1 in Ink, 1.6:1 in Paper and 1.4:1 in Carbon. KDE derives these colors from the scheme, so the
-  only lever is the selection color itself.
+- In GTK apps, a window without focus keeps the full selection color (3.8:1 against the list in Ink, 4.8:1 in
+  Paper, 3.7:1 in Carbon), but Breeze GTK draws text selected in an entry in the view's background color rather
+  than white. That text is 3.8:1 in Ink and 3.7:1 in Carbon, readable but under the 4.5:1 the rest of the theme
+  holds (Paper's is 4.8:1). Breeze GTK hard-codes that choice, so the scheme can't change it.
 
 These come from KWin's Aurorae engine, which draws the window decorations:
 
