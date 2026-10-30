@@ -25,7 +25,7 @@ These previews are illustrations drawn from the theme's own palette and geometry
 | Plasma theme `innerpulse` | One theme for all three variants, recolored by the active scheme. Panels have machined 4 px corners, a hairline and a faint graduated scale along the long edge. Popups carry one ember index tick at the top left. In menus and launchers the row index turns ember on hover. The focused task gets an ember bar on the panel side; tasks that want attention get amber |
 | Glass | Surfaces are lit from above: a sheen through the top edge, a 1 px highlight lip and a faint shade at the foot. Panels and popups are frosted (about three quarters ground, blurred behind). Apps use Oxygen's widget style, recolored by the scheme, for raised glass buttons, tabs and progress bars. `--style breeze` gives flat widgets instead |
 | Window decorations (Aurorae) | Glass title bar, hairline ring and soft shadow, with the ember index tick on the active window only. Buttons lift onto a glass tile on hover; close lifts onto the action red |
-| Wallpapers | **Exposure** (default), **Horizon**, **Field**, **Ribbon**, and **Carbon**. All but Carbon come in ink and paper renditions, and Plasma picks the one that matches the scheme. Each caption states what's actually drawn |
+| Wallpapers | **Exposure** (default), **Horizon**, **Field**, **Ribbon**, and **Carbon**. All but Carbon come in ink and paper renditions, and Plasma picks the one that matches the scheme. Each caption states what's actually drawn, true at every render size. Exposure and Carbon also have a quiet ground (nothing on it) for a second screen |
 | Splash screen | The mark draws itself in, then beats at a 2.4 s working tempo while Plasma starts, over a working line that shows the real elapsed time. It holds still when animations are off |
 | Global themes | `innerpulse Ink`, `innerpulse Paper` and `innerpulse Carbon` in System Settings → Colors & Themes → Global Theme. None of them touches your panel layout |
 | Konsole | Matching color schemes and profiles, with an ember block cursor |
@@ -36,10 +36,10 @@ These previews are illustrations drawn from the theme's own palette and geometry
 | Exposure | Horizon |
 |---|---|
 | ![Exposure](docs/wallpaper-exposure.jpg) | ![Horizon](docs/wallpaper-horizon.jpg) |
-| One beat of the mark photographed 96 times over 1.6 s, 8 px apart, resolving into the mark at rest | One beat in depth: 80 readings 0.056 s apart, receding to a horizon, with the rise drawn 3× (as its caption says). The front row is live |
+| One beat of the mark photographed 96 times over 1.6 s, 0.017 s apart, resolving into the mark at rest | One beat in depth: 80 readings 0.05625 s apart, receding to a horizon, with the rise drawn 3× (as its caption says). The front row is the latest reading |
 | **Field** | **Carbon** |
 | ![Field](docs/wallpaper-field.jpg) | ![Carbon](docs/wallpaper-carbon.jpg) |
-| A frozen waterfall, 240 × 128 of the mark's bars, with the mark cleaned out of the noise | Exposure over a fine carbon-fiber weave |
+| A frozen waterfall of the mark's bars on a 240 × 128 grid, with the mark cleaned out of the noise | Exposure over a fine carbon-fiber weave |
 
 ## Install
 
@@ -86,8 +86,9 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 | (none) | Copy the theme into place. Nothing on screen changes |
 | `--apply ink`, `paper` or `carbon` | Switch the desktop to that variant. Your previous global theme, colors, decoration, splash, widget style, Konsole profile and fonts are saved first |
 | `--style breeze` | With `--apply`: flat Breeze widgets instead of Oxygen's glass |
+| `--quiet-second-screen` | With `--apply` on more than one screen: the mark on the primary screen only, and the same ground with nothing on it everywhere else. Without it, every screen shows the same wallpaper |
 | `--fonts` | Fetch Inter, Instrument Sans, JetBrains Mono and Syne (SIL OFL) into `~/.local/share/fonts/innerpulse`. With them installed, `--apply` sets the interface and fixed-width fonts |
-| `--launcher-icon` | Put the mark on the application launcher |
+| `--launcher-icon` | Put the mark on the application launcher. It ships pixel-snapped at 22, 24, 32 and 48 px, so it stays sharp at panel size |
 | `--restore` | Put back what was active before the first `--apply` |
 | `--uninstall` | Restore, then remove every installed file. Fetched fonts are left in place |
 
@@ -112,7 +113,7 @@ src/lib/
   svg.mjs         nine-slice frames drawn as plain paths (Qt SVG renders SVG Tiny, so no clip paths or filters)
   plasma.mjs      the Plasma theme: panel, popups, tooltips, widgets, tasks, list highlights, glass
   aurorae.mjs     the window decorations and their buttons
-  wallpaper.mjs, wallpaper-art.mjs   Field, Ribbon, Exposure, Horizon, Carbon
+  wallpaper.mjs, wallpaper-art.mjs   Field, Ribbon, Exposure, Horizon, Carbon, the quiet grounds
   preview.mjs     the global-theme previews
 src/splash/       Splash.qml
 install.sh        install, apply, restore, uninstall

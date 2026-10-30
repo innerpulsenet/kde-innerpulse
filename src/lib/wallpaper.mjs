@@ -2,7 +2,7 @@
 //
 //   field    the brand's field frozen: a waterfall of the mark's own bar, 240 columns × 128 rows, a grey
 //            noise floor with a few carriers drifting through it, and the mark itself cleaned out of the noise
-//            in ember. The caption states what is drawn.
+//            in ember. The caption states what is drawn, counted from the bars actually drawn.
 //   ribbon   the kit's ribbon (the mark's envelope as a strip twisted two beats), bleeding off the right edge.
 import { readFileSync } from 'node:fs';
 import { barRects } from './mark.mjs';
@@ -10,6 +10,9 @@ import { n } from './svg.mjs';
 
 const VW = 2560, VH = 1440;
 const COLS = 240, ROWS = 128;
+// Captions sit at 82% of the height, not near the foot: on a 21:9 screen Plasma's "scaled and cropped" shows only
+// y 184 … 1256 of the box, and both caption lines (1181, 1204) stay inside that band.
+export const CAP_Y = Math.round(VH * 0.82);
 
 // mulberry32: a small seeded PRNG so the wallpaper is the same on every build
 export function rng(seed) {
@@ -36,7 +39,8 @@ export function grain(id, opacity) {
   };
 }
 
-export function fieldWallpaper(t) {
+// The mark carries no glow by default (the brand allows one opt-in only); { glow: true } adds a soft bloom on ink.
+export function fieldWallpaper(t, { glow = false } = {}) {
   const rand = rng(240128);
   const pitchX = VW / COLS, pitchY = VH / ROWS;
   const barW = 4, maxH = pitchY * 0.42;
@@ -49,7 +53,7 @@ export function fieldWallpaper(t) {
     return smooth(0.55, 1.05, Math.sqrt(dx * dx + dy * dy));
   };
   // The caption block, bottom right, above where a panel sits. No bar is drawn under it.
-  const capX = VW - 72, capY = VH - 150;
+  const capX = VW - 72, capY = CAP_Y;
   const capBox = { x0: capX - 560, x1: capX + 24, y0: capY - 30, y1: capY + 60 };
 
   // carriers: columns with sustained energy that drift a little over time and drop out now and then
@@ -90,7 +94,7 @@ export function fieldWallpaper(t) {
     g.defs,
     `<radialGradient id="vig" cx="${n(MX / VW)}" cy="${n(MY / VH)}" r="1.05"><stop offset=".35" stop-color="${bg}" stop-opacity="0"/><stop offset="1" stop-color="${t.dark ? '#000' : '#d6d1c8'}" stop-opacity="${t.dark ? 0.7 : 0.5}"/></radialGradient>`,
     `<linearGradient id="front" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg}" stop-opacity=".9"/><stop offset=".3" stop-color="${bg}" stop-opacity="0"/></linearGradient>`,
-    t.dark ? `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>` : '',
+    t.dark && glow ? `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>` : '',
   ].join('');
 
   const markColor = t.dark ? '#f43a2a' : '#cf2a1c';
@@ -98,12 +102,12 @@ export function fieldWallpaper(t) {
     `<rect width="${VW}" height="${VH}" fill="${bg}"/>`,
     `<g fill="${barColor}">${bars.join('')}</g>`,
     `<rect width="${VW}" height="${VH}" fill="url(#front)"/>`,
-    t.dark ? `<g fill="${markColor}" filter="url(#glow)" opacity=".38">${mark}</g>` : '',
+    t.dark && glow ? `<g fill="${markColor}" filter="url(#glow)" opacity=".38">${mark}</g>` : '',
     `<g fill="${markColor}">${mark}</g>`,
     `<rect width="${VW}" height="${VH}" fill="url(#vig)"/>`,
     g.layer,
     caption([
-      `THE FIELD · ${COLS} × ${ROWS} BARS`,
+      `THE FIELD · ${bars.length.toLocaleString('en-US')} BARS ON A ${COLS} × ${ROWS} GRID`,
       'SIGNAL · h = rest(84·|sin(2πi/5 − π/30)|)',
     ], capX, capY, t.dark ? '#8e877d' : '#575e6b'),
   ].join('\n');
@@ -119,7 +123,7 @@ export function ribbonWallpaper(t, brandDir) {
   const g = grain('grain', t.dark ? 0.05 : 0.04);
   const defs = g.defs +
     `<radialGradient id="vig" cx=".7" cy=".5" r="1"><stop offset=".4" stop-color="${bg}" stop-opacity="0"/><stop offset="1" stop-color="${t.dark ? '#000' : '#d6d1c8'}" stop-opacity="${t.dark ? 0.65 : 0.45}"/></radialGradient>`;
-  const capX = 72, capY = VH - 150;
+  const capX = 72, capY = CAP_Y;
   const body = [
     `<rect width="${VW}" height="${VH}" fill="${bg}"/>`,
     `<g transform="translate(${VW - 2000 * scale + 260} ${(VH - 1800 * scale) / 2 - 40}) scale(${scale})">${inner}</g>`,

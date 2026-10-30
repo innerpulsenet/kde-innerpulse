@@ -1,15 +1,17 @@
-// Two more wallpapers, both drawn from the mark’s own beat (mark.mjs), so what they show is true.
+// Three more wallpapers, two of them drawn from the mark’s own beat (mark.mjs), so what they show is true.
 //
 //   horizon   one beat laid out in depth. Each row is a reading of the mark's envelope across a wide floor
 //             of bars; rows recede to a horizon, 0.05625 s apart, so the 80 rows span exactly one 4.5 s
-//             period and the beat crosses the terrain once as a diagonal crest. The front row is the live
+//             period and the beat crosses the terrain once as a diagonal crest. The front row is the latest
 //             reading, in ember; history fades to gray toward the horizon. Rows occlude the ones behind them.
 //   exposure  a long exposure of the beat: the six bars photographed 96 times over the 1.6 s the beat takes to
-//             pass through them, each exposure 8 px to the right of the last, as hairline outlines. The trail
-//             resolves into the mark at rest, in solid ember.
+//             pass through them, 1.6/95 s apart, as hairline outlines. Each is drawn 8 units (box pixels) to the
+//             right of the last; the caption gives the interval in seconds, which holds at every render size. The
+//             trail resolves into the mark at rest, in solid ember.
+//   quiet     the Exposure ground with nothing on it, for a second screen, so the desk shows one mark, not two.
 import { beatHeights, barHeights, barX, MARK } from './mark.mjs';
 import { n } from './svg.mjs';
-import { rng, caption, grain, svgDoc } from './wallpaper.mjs';
+import { rng, caption, grain, svgDoc, CAP_Y } from './wallpaper.mjs';
 
 const VW = 2560, VH = 1440;
 const PERIOD = 4.5;
@@ -111,8 +113,9 @@ export function horizonWallpaper(t) {
     `<rect width="${VW}" height="${VH}" fill="url(#vig)"/>`,
     g.layer,
     caption([
-      `ONE BEAT IN DEPTH · ${N} READINGS, ${dt.toFixed(3)} s APART`,
-      `FRONT ROW LIVE · PERIOD 4.5 s · RISE DRAWN ×${RISE_X}`,
+      // 4.5/80 is exact in binary, so five places print the true interval, not a rounded one
+      `ONE BEAT IN DEPTH · ${N} READINGS, ${dt.toFixed(5)} s APART`,
+      `FRONT ROW LATEST · PERIOD ${PERIOD} s · RISE DRAWN ×${RISE_X}`,
     ], VW - 72, Math.round(y0 - 92), c.cap),
   ].join('\n');
   return svgDoc(body, defs);
@@ -172,9 +175,29 @@ export function exposureWallpaper(t) {
     `<rect width="${VW}" height="${VH}" fill="url(#vig)"/>`,
     g.layer,
     caption([
-      `ONE BEAT · ${F} EXPOSURES OVER ${WIN} s, ${dx} PX APART`,
+      // in seconds, not pixels: Plasma scales the image to the screen, so a pixel spacing is true at one size only
+      `ONE BEAT · ${F} EXPOSURES OVER ${WIN} s, ${(WIN / (F - 1)).toFixed(3)} s APART`,
       'ENDS AT REST · h = rest(84·|sin(2πi/5 − π/30)|)',
-    ], 72, VH - 150, c.cap, { anchor: 'start' }),
+    ], 72, CAP_Y, c.cap, { anchor: 'start' }),
+  ].join('\n');
+  return svgDoc(body, defs);
+}
+
+// --- quiet -----------------------------------------------------------------------------------------------
+
+// The companion ground for a second screen: the same ground, grain and (on Carbon) weave as Exposure, with no mark,
+// trail, axis or caption. The vignette is centered, since there is no subject to frame.
+export function quietWallpaper(t) {
+  const c = palette(t);
+  const g = grain('grain', t.dark ? 0.05 : 0.035);
+  const wv = t.id === 'carbon' ? weave(t) : null;
+  const defs = g.defs + (wv ? wv.defs : '') +
+    `<radialGradient id="vig" cx=".5" cy=".5" r=".9"><stop offset=".4" stop-color="${c.bg}" stop-opacity="0"/><stop offset="1" stop-color="${c.fog}" stop-opacity="${t.dark ? 0.65 : 0.4}"/></radialGradient>`;
+  const body = [
+    `<rect width="${VW}" height="${VH}" fill="${c.bg}"/>`,
+    wv ? wv.layer : '',
+    `<rect width="${VW}" height="${VH}" fill="url(#vig)"/>`,
+    g.layer,
   ].join('\n');
   return svgDoc(body, defs);
 }
