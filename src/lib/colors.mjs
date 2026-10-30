@@ -1,12 +1,22 @@
 // KDE color schemes (.colors) and Konsole color schemes (.colorscheme) from the palette.
-import { rgbStr, ansi } from './palette.mjs';
+import { rgbStr, hexRGB, contrast, ansi, ink } from './palette.mjs';
+
+const hex = (rgb) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+// a color mixed toward white by k (0..1), and a over b at alpha k
+const lift = (h, k) => hex(hexRGB(h).map((v) => v + (255 - v) * k));
+const mix = (a, b, k) => hex(hexRGB(a).map((v, i) => v * k + hexRGB(b)[i] * (1 - k)));
+// The least-lifted step of a hue that clears min on a fill: role tints inside a selection.
+const onFill = (hue, fill, min = 4.6) => {
+  for (let i = 0; i <= 50; i++) { const c = lift(hue, i * 0.02); if (contrast(c, fill) >= min) return c; }
+  return '#ffffff';
+};
 
 const set = (t, bg, bgAlt, { fg = t.text, inactive = t.text2, focus = t.focus, hover = t.hover } = {}) => ({
   BackgroundNormal: bg,
   BackgroundAlternate: bgAlt,
   DecorationFocus: focus,
   DecorationHover: hover,
-  ForegroundActive: t.mark,
+  ForegroundActive: t.activeText ?? t.mark,
   ForegroundInactive: inactive,
   ForegroundLink: t.link,
   ForegroundNegative: t.err,
@@ -19,8 +29,8 @@ const set = (t, bg, bgAlt, { fg = t.text, inactive = t.text2, focus = t.focus, h
 const section = (name, obj) =>
   `[${name}]\n` + Object.entries(obj).map(([k, v]) => `${k}=${typeof v === 'string' && v.startsWith('#') ? rgbStr(v) : v}`).join('\n') + '\n';
 
-export function colorScheme(t) {
-  const id = t.scheme;
+// The scheme's color sets, shared by colorScheme() and the build-time contrast gate below.
+function schemeSets(t) {
   // Ink: views sit one step above the ground, windows one more, buttons on surface 3, and the header (title
   // bars, toolbars) drops back to the ground so a window reads as a masthead over its content.
   // Paper: the same ladder walked the other way.
@@ -29,32 +39,61 @@ export function colorScheme(t) {
     : { view: '#faf8f4', viewAlt: t.ground, win: t.ground, winAlt: t.s1, btn: t.s1, btnAlt: t.s2, head: t.s2, headAlt: t.s1, tip: t.s1 };
 
   // Complementary is the always-dark set (lock screen, OSDs): ink in both schemes.
-  const comp = { ...t, text: t.id === 'carbon' ? t.text : '#ece7df', text2: t.id === 'carbon' ? t.text2 : '#b0a99f', mark: '#f43a2a', focus: '#f43a2a', hover: '#9c3a2f',
+  // Its hover is Ink's stone (Carbon keeps its steel): Paper's own hover is a light-ground value.
+  const comp = { ...t, text: t.id === 'carbon' ? t.text : '#ece7df', text2: t.id === 'carbon' ? t.text2 : '#b0a99f', mark: '#f43a2a', focus: '#f43a2a',
+    activeText: '#f43a2a', hover: t.id === 'carbon' ? t.hover : ink.hover,
     link: '#b38cff', visited: '#9a7fd6', ok: '#7dffb0', warn: '#ffb347', err: '#ff9a8f' };
 
+  // Selection. White text on the fill is about 5:1, so every role tint has to stay close to white to clear
+  // 4.5:1: each is the least-lifted step of its hue that does (onFill), and a selected row shows its roles by
+  // weight or icon more than by hue. This covers KColorScheme Selection text in widget apps; Kirigami draws a
+  // selected subtitle in plain highlightedTextColor. The one place focus isn't ember: ember on the red or blue
+  // fill is about 1.3:1, so a focus ring inside a selection is white. Hover is selectHover, which GTK paints
+  // under ordinary text when a selected row or text selection is hovered.
+  const fill = t.select;
   const sel = {
-    ...set(t, t.select, t.selectAlt, { fg: t.selectText, inactive: t.dark ? '#f2c9c3' : '#f6d6d1' }),
+    ...set(t, t.select, t.selectAlt, { fg: t.selectText, inactive: onFill(lift(fill, 0.6), fill), focus: '#ffffff', hover: t.selectHover }),
     ForegroundActive: '#ffffff',
-    ForegroundLink: '#ffe0a8',
-    ForegroundVisited: '#e7d6ff',
-    ForegroundNegative: '#ffd4cf',
-    ForegroundNeutral: '#ffe0a8',
-    ForegroundPositive: '#c9ffe0',
+    ForegroundLink: onFill('#ffe0a8', fill),
+    ForegroundVisited: onFill('#e7d6ff', fill),
+    ForegroundNegative: onFill('#ffd4cf', fill),
+    ForegroundNeutral: onFill('#ffe0a8', fill),
+    ForegroundPositive: onFill('#c9ffe0', fill),
   };
 
+  // QtQuick menus fill a highlighted item with 30% of the Window set's focus color and ring it in the full
+  // color, so Window and Header take a neutral focus (Carbon: its blued-steel selection) and ember stays on the
+  // text-field and button focus rings (View and Button).
+  const menuFocus = t.id === 'carbon' ? t.select : t.text3;
+
+  return {
+    v,
+    sets: {
+      'Colors:Button': set(t, v.btn, v.btnAlt),
+      'Colors:Complementary': set(comp, t.id === 'carbon' ? t.ground : '#0a0908', t.id === 'carbon' ? t.s2 : '#17140f'),
+      'Colors:Header': set(t, v.head, v.headAlt, { focus: menuFocus }),
+      'Colors:Header][Inactive': set(t, v.headAlt, v.head, { fg: t.text2, inactive: t.text3, focus: menuFocus }),
+      'Colors:Selection': sel,
+      'Colors:Tooltip': set(t, v.tip, v.win),
+      'Colors:View': set(t, v.view, v.viewAlt),
+      'Colors:Window': set(t, v.win, v.winAlt, { focus: menuFocus }),
+    },
+  };
+}
+
+export function colorScheme(t) {
+  const id = t.scheme;
+  const { v, sets } = schemeSets(t);
   return [
     `# ${t.name} — generated by src/build.mjs from the innerpulse brand kit. Edit the palette, not this file.`,
     '',
     section('ColorEffects:Disabled', { Color: '56,56,56', ColorAmount: 0, ColorEffect: 0, ContrastAmount: 0.65, ContrastEffect: 1, IntensityAmount: 0.1, IntensityEffect: 2 }),
-    section('ColorEffects:Inactive', { ChangeSelectionColor: 'true', Color: '112,111,110', ColorAmount: 0.025, ColorEffect: 2, ContrastAmount: 0.1, ContrastEffect: 2, Enable: 'false', IntensityAmount: 0, IntensityEffect: 0 }),
-    section('Colors:Button', set(t, v.btn, v.btnAlt)),
-    section('Colors:Complementary', set(comp, t.id === 'carbon' ? t.ground : '#0a0908', t.id === 'carbon' ? t.s2 : '#17140f')),
-    section('Colors:Header', set(t, v.head, v.headAlt)),
-    section('Colors:Header][Inactive', set(t, v.headAlt, v.head, { fg: t.text2, inactive: t.text3 })),
-    section('Colors:Selection', sel),
-    section('Colors:Tooltip', set(t, v.tip, v.win)),
-    section('Colors:View', set(t, v.view, v.viewAlt)),
-    section('Colors:Window', set(t, v.win, v.winAlt)),
+    // ChangeSelectionColor stays off: KColorScheme's fixed 40% tint would leave an unfocused window's selection
+    // at about 1.35:1 against its view. Oxygen still dims an unfocused list's selection on its own.
+    section('ColorEffects:Inactive', { ChangeSelectionColor: 'false', Color: '112,111,110', ColorAmount: 0.025, ColorEffect: 2, ContrastAmount: 0.1, ContrastEffect: 2, Enable: 'false', IntensityAmount: 0, IntensityEffect: 0 }),
+    ...Object.entries(sets).map(([name, obj]) => section(name, obj)),
+    // AccentColor here is informational: Plasma takes the accent from kdeglobals [General] AccentColor, and an
+    // empty one (what the global themes and install.sh set) means the scheme's own Selection colors.
     section('General', { ColorScheme: id, Name: t.name, shadeSortColumn: 'true', AccentColor: t.select }),
     section('KDE', { contrast: 4 }),
     section('WM', {
@@ -102,4 +141,49 @@ UnderlineFilesEnabled=true
 HistoryMode=2
 ScrollBarPosition=2
 `;
+}
+
+// --- contrast gate ----------------------------------------------------------------------------------------
+// Run by src/build.mjs for every scheme: a palette edit that drops a pair below its floor fails the build.
+// Text roles need 4.5:1 on both grounds of their set, decoration (focus, hover) 3:1. Returns
+// { fails, warns }, each an array of one-line descriptions.
+const TEXT = ['ForegroundNormal', 'ForegroundInactive', 'ForegroundActive', 'ForegroundLink', 'ForegroundVisited',
+  'ForegroundNegative', 'ForegroundNeutral', 'ForegroundPositive'];
+
+export function contrastGate(t) {
+  const { v, sets } = schemeSets(t);
+  const fails = [], warns = [];
+  const need = (list, what, fg, bg, min) => {
+    const r = contrast(fg, bg);
+    if (r < min) list.push(`${t.scheme} ${what}: ${fg} on ${bg} is ${r.toFixed(2)}:1, needs ${min}`);
+  };
+  for (const [name, s] of Object.entries(sets)) {
+    for (const bg of [s.BackgroundNormal, s.BackgroundAlternate]) {
+      for (const k of TEXT) need(fails, `${name} ${k}`, s[k], bg, 4.5);
+      need(fails, `${name} DecorationFocus`, s.DecorationFocus, bg, 3);
+      // a hovered selection is the one hover drawn on its own ground, not on the set's
+      if (name !== 'Colors:Selection') need(fails, `${name} DecorationHover`, s.DecorationHover, bg, 3);
+    }
+  }
+  need(fails, 'selection fill against the view', t.select, v.view, 3);
+  need(fails, 'hovered selection (GTK draws window text on it)', t.text, t.selectHover, 4.5);
+  need(fails, 'hovered selection against the selection', t.selectHover, t.select, 1.3);
+  need(fails, 'alternate list rows', v.viewAlt, v.view, 1.04);
+
+  // Konsole: ANSI text on the terminal ground and on bgIntense (SGR 100); Color0 is black, so it is skipped
+  const a = ansi[t.id];
+  for (let i = 1; i < 8; i++) {
+    need(fails, `Konsole Color${i}`, a.normal[i], a.bg, 4.5);
+    need(fails, `Konsole Color${i}Intense`, a.bright[i], a.bg, 4.5);
+    need(fails, `Konsole Color${i}Faint`, a.faint[i], a.bg, 3);
+  }
+  need(fails, 'Konsole Color0Intense (dim gray)', a.bright[0], a.bg, 4.5);
+  need(fails, 'Konsole Color0Intense (dim gray) on bgIntense', a.bright[0], a.bgIntense, 4.5);
+
+  // Known and documented in the README, not fixable from the scheme: GTK (Breeze, colors from kded gtkconfig)
+  // shows an unfocused selection as 25% of the fill over the window, with the view color as its text.
+  const wash = mix(t.select, v.win, 0.25);
+  need(warns, 'unfocused GTK selection against the view', wash, v.view, 3);
+  need(warns, 'unfocused GTK selected text', v.view, wash, 4.5);
+  return { fails, warns };
 }

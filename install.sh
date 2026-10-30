@@ -99,6 +99,8 @@ save_previous() {
   {
     echo "lookandfeel=$(kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage)"
     echo "colorscheme=$(kreadconfig6 --file kdeglobals --group General --key ColorScheme)"
+    echo "accent=$(kreadconfig6 --file kdeglobals --group General --key AccentColor)"
+    echo "accentwall=$(kreadconfig6 --file kdeglobals --group General --key accentColorFromWallpaper)"
     echo "decolib=$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key library)"
     echo "decotheme=$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme)"
     echo "plasmatheme=$(kreadconfig6 --file plasmarc --group Theme --key name)"
@@ -126,6 +128,11 @@ do_apply() {
   save_previous
   local scheme
   case "$variant" in ink) scheme=InnerpulseInk ;; paper) scheme=InnerpulsePaper ;; carbon) scheme=InnerpulseCarbon ;; esac
+
+  # The scheme's own selection is the accent: a custom accent or one taken from the wallpaper would retint it.
+  # Set before the scheme is applied, so the selection is baked without a tint (the previous accent is saved).
+  kwriteconfig6 --file kdeglobals --group General --key AccentColor --delete
+  kwriteconfig6 --file kdeglobals --group General --key accentColorFromWallpaper false
 
   # The global theme sets colors, Plasma theme, window decoration, splash, cursor and icons. It does not
   # touch panels or widgets (no --resetLayout).
@@ -193,6 +200,13 @@ do_restore() {
   [[ -f "$f" ]] || { say "nothing to restore"; return; }
   # shellcheck disable=SC1090
   declare -A p; while IFS='=' read -r k v; do p[$k]="$v"; done < "$f"
+  # The accent first, so the schemes applied below bake their selection with it. State saved by an older
+  # install.sh has no accent lines: those keys were then never set by us, so they are deleted.
+  for pair in "accent:AccentColor" "accentwall:accentColorFromWallpaper"; do
+    local k="${pair%%:*}" key="${pair##*:}"
+    if [[ -n "${p[$k]:-}" ]]; then kwriteconfig6 --file kdeglobals --group General --key "$key" "${p[$k]}"
+    else kwriteconfig6 --file kdeglobals --group General --key "$key" --delete; fi
+  done
   [[ -n "${p[lookandfeel]}" ]] && lookandfeeltool -a "${p[lookandfeel]}" >/dev/null 2>&1 || true
   [[ -n "${p[colorscheme]}" ]] && plasma-apply-colorscheme "${p[colorscheme]}" >/dev/null 2>&1 || true
   [[ -n "${p[plasmatheme]}" ]] && plasma-apply-desktoptheme "${p[plasmatheme]}" >/dev/null 2>&1 || true

@@ -21,7 +21,7 @@ These previews are illustrations drawn from the theme's own palette and geometry
 
 | Part | What it does |
 |---|---|
-| Color schemes `InnerpulseInk`, `InnerpulsePaper`, `InnerpulseCarbon` | Warm ink surfaces, paper, or carbon with brushed-steel text. Three text grays that clear WCAG AA. Selection is deep ember with white text (6.5:1), or gunmetal at 8.1:1 in Carbon. Focus rings are ember, links violet, and status colors mint, amber and soft red |
+| Color schemes `InnerpulseInk`, `InnerpulsePaper`, `InnerpulseCarbon` | Warm ink surfaces, paper, or carbon with brushed-steel text. Three text grays that clear WCAG AA. Selection is the action red with white text (5.1:1), or blued steel at 5.0:1 in Carbon. Focus rings are ember, links violet, and status colors mint, amber and soft red. Every text, focus and hover pair is checked when the theme is built, and the build fails if one drops below WCAG AA |
 | Plasma theme `innerpulse` | One theme for all three variants, recolored by the active scheme. Panels have machined 4 px corners, a hairline and a faint graduated scale along the long edge. Popups carry one ember index tick at the top left. In menus and launchers the row index turns ember on hover. The focused task gets an ember bar on the panel side; tasks that want attention get amber |
 | Glass | Surfaces are lit from above: a sheen through the top edge, a 1 px highlight lip and a faint shade at the foot. Panels and popups are frosted (about three quarters ground, blurred behind). Apps use Oxygen's widget style, recolored by the scheme, for raised glass buttons, tabs and progress bars. `--style breeze` gives flat widgets instead |
 | Window decorations (Aurorae) | Glass title bar, hairline ring and soft shadow, with the ember index tick on the active window only. Buttons lift onto a glass tile on hover; close lifts onto the action red |
@@ -84,7 +84,7 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 | Option | What it does |
 |---|---|
 | (none) | Copy the theme into place. Nothing on screen changes |
-| `--apply ink`, `paper` or `carbon` | Switch the desktop to that variant. Your previous global theme, colors, decoration, splash, widget style, Konsole profile and fonts are saved first |
+| `--apply ink`, `paper` or `carbon` | Switch the desktop to that variant. Your previous global theme, colors, accent color, decoration, splash, widget style, Konsole profile and fonts are saved first. A custom or wallpaper accent is switched off, since it would retint the selection |
 | `--style breeze` | With `--apply`: flat Breeze widgets instead of Oxygen's glass |
 | `--fonts` | Fetch Inter, Instrument Sans, JetBrains Mono and Syne (SIL OFL) into `~/.local/share/fonts/innerpulse`. With them installed, `--apply` sets the interface and fixed-width fonts |
 | `--launcher-icon` | Put the mark on the application launcher |
@@ -93,12 +93,17 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 
 ## Known limitations
 
-Both come from Oxygen's widget style, so a color scheme can't change them. `--style breeze` avoids both, at the
-cost of the glass.
+The first two come from Oxygen's widget style, so a color scheme can't change them. `--style breeze` avoids
+both, at the cost of the glass.
 
-- In a list that doesn't have keyboard focus, Oxygen dims the selection to about 40% (roughly 1.3–1.5:1 against
-  the list). The focused selection is full strength: 3.5:1 in Ink, 5.2:1 in Paper and 3.7:1 in Carbon.
+- In a list that doesn't have keyboard focus, Oxygen dims the selection to about 40% (roughly 1.5–1.9:1 against
+  the list). The focused selection is full strength: 3.8:1 in Ink, 4.8:1 in Paper and 3.7:1 in Carbon. The
+  color scheme itself doesn't dim an unfocused window's selection.
 - Oxygen doesn't fill the default button in a dialog, so "OK" and "Cancel" look alike. Breeze fills it.
+- In GTK apps, a window without focus shows its selection as a 25% mix of the selection over the window color,
+  and Breeze GTK draws the selected text in the view's background color. That selection, and the text in it,
+  is about 1.3:1 in Ink, 1.6:1 in Paper and 1.4:1 in Carbon. KDE derives these colors from the scheme, so the
+  only lever is the selection color itself.
 
 ## How it's built
 

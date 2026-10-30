@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { themes, ink, paper, carbon } from './lib/palette.mjs';
-import { colorScheme, konsoleScheme, konsoleProfile } from './lib/colors.mjs';
+import { colorScheme, konsoleScheme, konsoleProfile, contrastGate } from './lib/colors.mjs';
 import { plasmaTheme } from './lib/plasma.mjs';
 import { auroraeTheme } from './lib/aurorae.mjs';
 import { fieldWallpaper, ribbonWallpaper, WALLPAPER_SIZES } from './lib/wallpaper.mjs';
@@ -41,6 +41,18 @@ const raster = (svgPath, outPath, w, h) => {
   execFileSync('rsvg-convert', ['-w', String(w), '-h', String(h), '-o', outPath, svgPath]);
 };
 const log = (...a) => console.log('·', ...a);
+
+// 0. contrast gate: every text and decoration pair in the schemes and Konsole sets must clear its floor
+{
+  const gate = themes.map(contrastGate);
+  for (const w of gate.flatMap((g) => g.warns)) console.log('  known:', w);
+  const fails = gate.flatMap((g) => g.fails);
+  if (fails.length) {
+    for (const f of fails) console.error('  contrast:', f);
+    console.error(`build.mjs: ${fails.length} color pair(s) below their contrast floor (src/lib/colors.mjs contrastGate)`);
+    process.exit(1);
+  }
+}
 
 rmSync(DIST, { recursive: true, force: true });
 rmSync(BUILD, { recursive: true, force: true });
@@ -111,7 +123,7 @@ for (const t of themes) {
       Description: {
         ink: 'innerpulse on ink: warm ink grounds, machined corners, hairlines and one ember signal',
         paper: 'innerpulse on paper: the light ground, the deep ember, the same instrument',
-        carbon: 'innerpulse in carbon and brushed steel: cool carbon grounds, steel text, gunmetal selection, one ember signal',
+        carbon: 'innerpulse in carbon and brushed steel: cool carbon grounds, steel text, blued-steel selection, one ember signal',
       }[t.id],
       Id: id, License: 'MIT', Name: t.name, Version: VERSION, Website: 'https://www.innerpulse.net',
     },
@@ -123,6 +135,7 @@ widgetStyle=Oxygen
 [kdeglobals][General]
 ColorScheme=${t.scheme}
 AccentColor=
+accentColorFromWallpaper=false
 
 [kdeglobals][Icons]
 Theme=${t.dark ? 'breeze-dark' : 'breeze'}
