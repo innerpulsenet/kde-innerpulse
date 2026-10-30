@@ -12,11 +12,11 @@ export const GLASS = {
 };
 
 // Title bars: [active, inactive]. An inactive title bar keeps a faint version of the light, so it reads as the
-// same material, just not lit.
+// same material, just not lit. `shade` is the window's bottom edge, the same lit or not.
 export const TITLE_GLASS = {
-  ink: { sheen: [0.07, 0.035], lip: [0.13, 0.07] },
-  paper: { sheen: [0.55, 0.3], lip: [0.9, 0.6] },
-  carbon: { sheen: [0.11, 0.05], lip: [0.2, 0.09] },
+  ink: { sheen: [0.07, 0.035], lip: [0.13, 0.07], shade: 0.3 },
+  paper: { sheen: [0.55, 0.3], lip: [0.9, 0.6], shade: 0.06 },
+  carbon: { sheen: [0.11, 0.05], lip: [0.2, 0.09], shade: 0.3 },
 };
 
 // The index tick: a short ember bar on the edge that faces the content, starting `gap` px past the end of the

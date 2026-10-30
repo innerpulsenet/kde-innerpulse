@@ -60,8 +60,9 @@ for (const [rel, data] of Object.entries(plasmaTheme(ink, VERSION))) put(`plasma
 log('Plasma theme');
 
 // 3. window decorations
-for (const t of themes) {
-  const { id, files } = auroraeTheme(t, VERSION);
+// each also as an opt-in -frosted decoration (install.sh --frosted-titlebar)
+for (const t of themes) for (const frosted of [false, true]) {
+  const { id, files } = auroraeTheme(t, VERSION, { frosted });
   for (const [rel, data] of Object.entries(files)) put(`aurorae/themes/${id}/${rel}`, data);
 }
 log('Aurorae decorations');

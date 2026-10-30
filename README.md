@@ -24,7 +24,7 @@ These previews are illustrations drawn from the theme's own palette and geometry
 | Color schemes `InnerpulseInk`, `InnerpulsePaper`, `InnerpulseCarbon` | Warm ink surfaces, paper, or carbon with brushed-steel text. Three text grays that clear WCAG AA. Selection is deep ember with white text (6.5:1), or gunmetal at 8.1:1 in Carbon. Focus rings are ember, links violet, and status colors mint, amber and soft red |
 | Plasma theme `innerpulse` | One theme for all three variants, recolored by the active scheme. Panels have machined 4 px corners, a hairline and a faint graduated scale along the long edge. Popups carry one ember index tick at the top left. In menus and launchers the row index turns ember on hover. The focused task gets an ember bar on the panel side; tasks that want attention get amber |
 | Glass | Surfaces are lit from above: a sheen through the top edge, a 1 px highlight lip and a faint shade at the foot. Panels and popups are frosted (about three quarters ground, blurred behind). Apps use Oxygen's widget style, recolored by the scheme, for raised glass buttons, tabs and progress bars. `--style breeze` gives flat widgets instead |
-| Window decorations (Aurorae) | Glass title bar, hairline ring and soft shadow, with the ember index tick on the active window only. Buttons lift onto a glass tile on hover; close lifts onto the action red |
+| Window decorations (Aurorae) | Glass title bar, hairline ring and a soft shadow lit from above, with the ember index tick on the active window only. Buttons lift onto a glass tile on hover; close lifts onto the action red. Toggles that are on (all desktops, keep above or below, shade) sit sunken with a bar under the glyph. Each variant also comes as `innerpulse … (frosted title bar)`, whose active title bar is translucent and blurred behind |
 | Wallpapers | **Exposure** (default), **Horizon**, **Field**, **Ribbon**, and **Carbon**. All but Carbon come in ink and paper renditions, and Plasma picks the one that matches the scheme. Each caption states what's actually drawn |
 | Splash screen | The mark draws itself in, then beats at a 2.4 s working tempo while Plasma starts, over a working line that shows the real elapsed time. It holds still when animations are off |
 | Global themes | `innerpulse Ink`, `innerpulse Paper` and `innerpulse Carbon` in System Settings → Colors & Themes → Global Theme. None of them touches your panel layout |
@@ -86,6 +86,7 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 | (none) | Copy the theme into place. Nothing on screen changes |
 | `--apply ink`, `paper` or `carbon` | Switch the desktop to that variant. Your previous global theme, colors, decoration, splash, widget style, Konsole profile and fonts are saved first |
 | `--style breeze` | With `--apply`: flat Breeze widgets instead of Oxygen's glass |
+| `--frosted-titlebar` | With `--apply`: the frosted window decoration, whose active title bar is translucent and blurred behind. The default is opaque |
 | `--fonts` | Fetch Inter, Instrument Sans, JetBrains Mono and Syne (SIL OFL) into `~/.local/share/fonts/innerpulse`. With them installed, `--apply` sets the interface and fixed-width fonts |
 | `--launcher-icon` | Put the mark on the application launcher |
 | `--restore` | Put back what was active before the first `--apply` |
@@ -99,6 +100,15 @@ cost of the glass.
 - In a list that doesn't have keyboard focus, Oxygen dims the selection to about 40% (roughly 1.3–1.5:1 against
   the list). The focused selection is full strength: 3.5:1 in Ink, 5.2:1 in Paper and 3.7:1 in Carbon.
 - Oxygen doesn't fill the default button in a dialog, so "OK" and "Cancel" look alike. Breeze fills it.
+
+These come from KWin's Aurorae engine, which draws the window decorations:
+
+- Aurorae ignores the animation-speed setting, so `--apply` scales the decorations' fades by the speed set at
+  that moment (instant turns them off). If you change the speed later, run `--apply` again.
+- A maximized window has no index tick. Aurorae stretches a maximized title bar from one slice, and a tick can't
+  survive the stretch.
+- A toggle that is on shows no hover, and the sunken look flashes while you hold the mouse on one that is off.
+  Aurorae uses one state for both pressed and on.
 
 ## How it's built
 

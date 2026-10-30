@@ -7,6 +7,7 @@
 #                                    from the google/fonts repository into ~/.local/share/fonts/innerpulse
 #   ./install.sh --launcher-icon     set the application launcher's icon to the mark
 #   ./install.sh --style breeze      with --apply: flat Breeze widgets instead of Oxygen's glass (default oxygen)
+#   ./install.sh --frosted-titlebar  with --apply: the active title bar is translucent, blurred behind (default opaque)
 #   ./install.sh --restore           switch back to what was active before the last --apply
 #   ./install.sh --uninstall         --restore, then remove every installed file
 #
@@ -33,6 +34,9 @@ INSTALLED=(
   "konsole/innerpulse-carbon.profile"
   "aurorae/themes/innerpulse-ink"
   "aurorae/themes/innerpulse-paper"
+  "aurorae/themes/innerpulse-ink-frosted"
+  "aurorae/themes/innerpulse-paper-frosted"
+  "aurorae/themes/innerpulse-carbon-frosted"
   "wallpapers/innerpulse-exposure"
   "wallpapers/innerpulse-horizon"
   "wallpapers/innerpulse-field"
@@ -115,6 +119,19 @@ save_previous() {
   } > "$STATE/previous.conf"
 }
 
+# Aurorae's crossfade and button fades take the theme's Animation= value as is, ignoring the animation-speed
+# setting, so scale every installed innerpulse decoration by it here (0 = instant). do_install has just copied
+# the generated value in, so this starts from it each time. A snapshot: re-run --apply after moving the slider.
+scale_aurorae_animation() {
+  local f ms rc
+  f=$(kreadconfig6 --file kdeglobals --group KDE --key AnimationDurationFactor --default 1)
+  for rc in "$DATA"/aurorae/themes/innerpulse-*/innerpulse-*rc; do
+    [[ -f "$rc" ]] || continue
+    ms=$(LC_ALL=C awk -v f="$f" -F= '/^Animation=/ { printf "%d", $2 * f + 0.5 }' "$rc")
+    [[ -n "$ms" ]] && sed -i "s/^Animation=.*/Animation=$ms/" "$rc"
+  done
+}
+
 reconfigure_kwin() {
   if have qdbus6; then qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true; fi
 }
@@ -134,7 +151,8 @@ do_apply() {
   plasma-apply-colorscheme "$scheme" >/dev/null || true
   plasma-apply-desktoptheme innerpulse >/dev/null || true
   kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
-  kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "__aurorae__svg__innerpulse-$variant"
+  kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "__aurorae__svg__innerpulse-$variant$DECO"
+  scale_aurorae_animation
   kwriteconfig6 --file ksplashrc --group KSplash --key Theme net.innerpulse.ink
   kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
   # Widgets: Oxygen's glass (top-lit window gradient, raised glass buttons) recolored by the scheme, or Breeze.
@@ -232,12 +250,13 @@ do_uninstall() {
   say "removed (fonts in $FONTDIR, if fetched, are left in place)"
 }
 
-apply="" fonts=0 icon=0 action=install STYLE=Oxygen
+apply="" fonts=0 icon=0 action=install STYLE=Oxygen DECO=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply) apply=ink; case "${2:-}" in ink|paper|carbon) apply="$2"; shift ;; esac ;;
     --fonts) fonts=1 ;;
     --style) case "${2:-}" in oxygen) STYLE=Oxygen ;; breeze) STYLE=Breeze ;; *) die "--style takes oxygen or breeze" ;; esac; shift ;;
+    --frosted-titlebar) DECO=-frosted ;;
     --launcher-icon) icon=1 ;;
     --restore) action=restore ;;
     --uninstall) action=uninstall ;;
