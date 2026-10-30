@@ -23,6 +23,8 @@ INSTALLED=(
   "color-schemes/InnerpulseInk.colors"
   "color-schemes/InnerpulsePaper.colors"
   "plasma/desktoptheme/innerpulse"
+  "plasma/desktoptheme/innerpulse-paper"
+  "plasma/desktoptheme/innerpulse-carbon"
   "plasma/look-and-feel/net.innerpulse.ink"
   "plasma/look-and-feel/net.innerpulse.paper"
   "plasma/look-and-feel/net.innerpulse.carbon"
@@ -113,7 +115,11 @@ save_previous() {
     echo "accentwall=$(kreadconfig6 --file kdeglobals --group General --key accentColorFromWallpaper)"
     echo "decolib=$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key library)"
     echo "decotheme=$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme)"
-    echo "plasmatheme=$(kreadconfig6 --file plasmarc --group Theme --key name)"
+    # An innerpulse theme already active (left by an older install.sh, or set by hand) is not something to
+    # go back to: record it as unset, so restore returns to Plasma's default theme.
+    local plasmatheme; plasmatheme="$(kreadconfig6 --file plasmarc --group Theme --key name)"
+    [[ $plasmatheme == innerpulse* ]] && plasmatheme=""
+    echo "plasmatheme=$plasmatheme"
     echo "splash=$(kreadconfig6 --file ksplashrc --group KSplash --key Theme)"
     echo "konsoleprofile=$(kreadconfig6 --file konsolerc --group 'Desktop Entry' --key DefaultProfile)"
     echo "widgetstyle=$(kreadconfig6 --file kdeglobals --group KDE --key widgetStyle)"
@@ -150,7 +156,9 @@ do_apply() {
   lookandfeeltool -a "net.innerpulse.$variant" >/dev/null
   # Set the parts explicitly too, so a partial apply (or a cached setting) cannot leave a mix behind.
   plasma-apply-colorscheme "$scheme" >/dev/null || true
-  plasma-apply-desktoptheme innerpulse >/dev/null || true
+  # One desktop theme per variant (the glass differs); Ink's keeps the plain name.
+  local desktoptheme=innerpulse; [[ $variant == ink ]] || desktoptheme="innerpulse-$variant"
+  plasma-apply-desktoptheme "$desktoptheme" >/dev/null || true
   kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
   kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "__aurorae__svg__innerpulse-$variant"
   kwriteconfig6 --file ksplashrc --group KSplash --key Theme net.innerpulse.ink
@@ -222,7 +230,12 @@ do_restore() {
   done
   [[ -n "${p[lookandfeel]}" ]] && lookandfeeltool -a "${p[lookandfeel]}" >/dev/null 2>&1 || true
   [[ -n "${p[colorscheme]}" ]] && plasma-apply-colorscheme "${p[colorscheme]}" >/dev/null 2>&1 || true
-  [[ -n "${p[plasmatheme]}" ]] && plasma-apply-desktoptheme "${p[plasmatheme]}" >/dev/null 2>&1 || true
+  if [[ -n "${p[plasmatheme]}" ]]; then plasma-apply-desktoptheme "${p[plasmatheme]}" >/dev/null 2>&1 || true
+  else
+    # no theme was set before: back to Plasma's default, and leave the key unset as it was
+    plasma-apply-desktoptheme default >/dev/null 2>&1 || true
+    kwriteconfig6 --file plasmarc --group Theme --key name --delete
+  fi
   for pair in "decolib:library" "decotheme:theme"; do
     local k="${pair%%:*}" key="${pair##*:}"
     if [[ -n "${p[$k]}" ]]; then kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key "$key" "${p[$k]}"

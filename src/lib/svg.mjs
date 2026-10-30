@@ -17,7 +17,7 @@ const SLICES = ['topleft', 'top', 'topright', 'left', 'center', 'right', 'bottom
 export function colorStyle(t) {
   const c = {
     Text: t.text, Background: t.dark ? t.s2 : t.ground, ViewBackground: t.dark ? t.s1 : '#faf8f4',
-    HeaderBackground: t.dark ? t.ground : t.s2, ButtonBackground: t.dark ? t.s3 : t.s1,
+    HeaderBackground: t.dark ? t.ground : t.s2, ButtonBackground: t.dark ? t.s3 : t.s1, ButtonText: t.text,
     ButtonFocus: t.focus, ViewFocus: t.focus, ButtonHover: t.hover, Highlight: t.select,
     NegativeText: t.err, NeutralText: t.warn, PositiveText: t.ok, ComplementaryBackground: '#0a0908',
   };
@@ -160,14 +160,63 @@ export function shadowFrame({ x, y, s, inner = 6, r = 4, rgb = [0, 0, 0], alpha 
   return { defs: defs.join(''), body: out.join('\n') };
 }
 
-/** Margin and inset hints for a frame. */
-export function hints(prefix, { top, bottom, left, right }, x, y) {
-  return [
+/**
+ * Margin hints for a frame, plus inset hints when `insets` is given. A hint's value is its height (top,
+ * bottom) or its width (left, right). The insets go in a second row, 12 px down.
+ */
+export function hints(prefix, { top, bottom, left, right }, x, y, insets) {
+  const out = [
     `<rect id="${prefix}hint-top-margin" x="${x}" y="${y}" width="4" height="${n(top)}" fill="#f0f" opacity=".001"/>`,
     `<rect id="${prefix}hint-bottom-margin" x="${x + 6}" y="${y}" width="4" height="${n(bottom)}" fill="#f0f" opacity=".001"/>`,
     `<rect id="${prefix}hint-left-margin" x="${x + 12}" y="${y}" width="${n(left)}" height="4" fill="#f0f" opacity=".001"/>`,
     `<rect id="${prefix}hint-right-margin" x="${x + 12}" y="${y + 6}" width="${n(right)}" height="4" fill="#f0f" opacity=".001"/>`,
+  ];
+  if (insets) out.push(insetHints(prefix, insets, x, y + 12));
+  return out.join('\n');
+}
+
+/**
+ * Inset hints alone: how far a frame's background sits inside the item's edges (a negative margin, for
+ * popups whose content runs to the frame). `thin` is the side that carries no value.
+ */
+export function insetHints(prefix, { top, bottom, left, right }, x, y, thin = 4) {
+  return [
+    `<rect id="${prefix}hint-top-inset" x="${x}" y="${y}" width="${thin}" height="${n(top)}" fill="#f0f" opacity=".001"/>`,
+    `<rect id="${prefix}hint-bottom-inset" x="${x + thin + 2}" y="${y}" width="${thin}" height="${n(bottom)}" fill="#f0f" opacity=".001"/>`,
+    `<rect id="${prefix}hint-left-inset" x="${x + 2 * thin + 4}" y="${y}" width="${n(left)}" height="${thin}" fill="#f0f" opacity=".001"/>`,
+    `<rect id="${prefix}hint-right-inset" x="${x + 2 * thin + 4}" y="${y + thin + 2}" width="${n(right)}" height="${thin}" fill="#f0f" opacity=".001"/>`,
   ].join('\n');
+}
+
+// --- round things: discs, rings and arcs (radio buttons, handles, the busy indicator) ------------------
+
+const polar = (cx, cy, r, a) => [cx + r * Math.cos((a * Math.PI) / 180), cy + r * Math.sin((a * Math.PI) / 180)];
+
+/** Path data for an arc of radius r from angle a0 to a1: degrees clockwise from 3 o'clock, as y runs down. */
+export function arc(cx, cy, r, a0, a1) {
+  const [x0, y0] = polar(cx, cy, r, a0), [x1, y1] = polar(cx, cy, r, a1);
+  return `M${n(x0)},${n(y0)}A${n(r)} ${n(r)} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${n(x1)},${n(y1)}`;
+}
+
+// a full circle as two half arcs, one closed path (no <circle>, so rings can be cut with even-odd)
+const circlePath = (cx, cy, r) =>
+  `M${n(cx - r)},${n(cy)}A${n(r)} ${n(r)} 0 1 1 ${n(cx + r)},${n(cy)}A${n(r)} ${n(r)} 0 1 1 ${n(cx - r)},${n(cy)}Z`;
+
+export const disc = (cx, cy, r, paint) => `<path d="${circlePath(cx, cy, r)}" ${paint}/>`;
+
+/** A ring between radii r0 < r1, drawn as a fill like every frame's hairline. */
+export const annulus = (cx, cy, r0, r1, paint) => `<path d="${circlePath(cx, cy, r1)}${circlePath(cx, cy, r0)}" fill-rule="evenodd" ${paint}/>`;
+
+/** A soft round shadow: a radial falloff from `inner` (under the shape) to `r`. */
+export function roundShadow(id, cx, cy, inner, r, rgb, alpha) {
+  const [R, G, B] = rgb;
+  const k = inner / r;
+  const stops = [[0, 1], [k, 1], [k + 0.25 * (1 - k), 0.55], [k + 0.55 * (1 - k), 0.2], [1, 0]]
+    .map(([o, a]) => `<stop offset="${n(o)}" stop-color="rgb(${R},${G},${B})" stop-opacity="${n(alpha * a)}"/>`).join('');
+  return {
+    defs: `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}">${stops}</radialGradient>`,
+    body: disc(cx, cy, r, `fill="url(#${id})"`),
+  };
 }
 
 export const doc = (w, h, body, { style = '', defs = '' } = {}) =>

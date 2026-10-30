@@ -17,6 +17,10 @@
 // uses as activeTextColor (the frame of an information banner), so it is a text-grade step of the ember family
 // rather than the mark itself. selectHover is a hovered selection, which GTK paints under ordinary text: a darker
 // step of the fill on dark grounds, a pale one on Paper. src/lib/colors.mjs checks every one of these at build time.
+//
+// The selection color stays in selections. Breeze's Plasma meters, sliders, switches and scroll bars paint
+// it, but this theme ships its own (plasma.mjs), in steel, so Plasma's meters, sliders, switches and scroll
+// bars no longer paint it (a stepped slider's tick marks still come from QML).
 
 export const ink = {
   id: 'ink',
