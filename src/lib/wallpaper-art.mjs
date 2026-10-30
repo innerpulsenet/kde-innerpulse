@@ -7,6 +7,9 @@
 //   exposure  a long exposure of the beat: the six bars photographed 96 times over the 1.6 s the beat takes to
 //             pass through them, each exposure 8 px to the right of the last, as hairline outlines. The trail
 //             resolves into the mark at rest, in solid ember.
+//   lock      the same exposure set low and to the right, smaller and without the time axis, so the lock
+//             screen's clock, avatar, password field and footer sit on clear ground. The lock screen's own
+//             plugin (src/lock) draws the live mark exactly over the resting one.
 import { beatHeights, barHeights, barX, MARK } from './mark.mjs';
 import { n } from './svg.mjs';
 import { rng, caption, grain, svgDoc } from './wallpaper.mjs';
@@ -121,12 +124,22 @@ export function horizonWallpaper(t) {
 // --- exposure --------------------------------------------------------------------------------------------
 
 export const EXPOSURE = { frames: 96, window: 1.6, dx: 8 };
+// Where the resting mark sits, as fractions of the 2560 × 1440 box, and the side of its 220-unit box in px. The
+// splash and the lock plugin place their live marks from these, so they land exactly on the wallpaper's.
+export const EXPOSURE_MARK = { mx: 0.67, my: 0.45, box: 560 };
+// The lock composition keeps x 0.3–0.7, y 0.08–0.66 free (clock, avatar, password, actions) and the footer row
+// clear: the bars, beating, span y ≈ 1028–1334 and the trail x ≈ 939–1987.
+export const LOCK_MARK = { mx: 0.72, my: 0.82, box: 308 };
+export const ART = { width: VW, height: VH };
 
-export function exposureWallpaper(t) {
+export const exposureWallpaper = (t) => exposureArt(t, { at: EXPOSURE_MARK, axis: true, vig: ['.6', '.46'] });
+export const lockWallpaper = (t) => exposureArt(t, { at: LOCK_MARK, axis: false, vig: ['.66', '.62'] });
+
+function exposureArt(t, { at, axis: withAxis, vig }) {
   const c = palette(t);
   const { frames: F, window: WIN, dx } = EXPOSURE;
-  const S = 560 / 220;
-  const MX = VW * 0.67, MY = VH * 0.45;
+  const S = at.box / 220;
+  const MX = VW * at.mx, MY = VH * at.my;
   const r = MARK.stroke / 2;
   const out = [];
   for (let f = 0; f < F; f++) {
@@ -145,29 +158,32 @@ export function exposureWallpaper(t) {
     `<rect x="${n(MX + (barX(i) - r) * S)}" y="${n(MY - (h + r) * S)}" width="${n(MARK.stroke * S)}" height="${n((2 * h + 2 * r) * S)}" rx="${n(MARK.corner * S)}"/>`).join('');
 
   // a time axis under the trail: one tick per 0.1 s of the window, labeled at each half second
-  const axisY = MY + (98 + 16 + 11) * S + 46;
-  // the axis follows the left stub's leading edge, where every exposure starts
-  const lead = (barX(0) - r) * S;
-  const x0 = MX - (F - 1) * dx + lead, x1 = MX + lead;
-  const axis = [`<rect x="${n(x0)}" y="${n(axisY)}" width="${n(x1 - x0)}" height="1"/>`];
-  const labels = [];
-  for (let i = 0; i <= WIN * 10 + 1e-9; i++) {
-    const x = x0 + ((i / 10) / WIN) * (x1 - x0);
-    const major = i % 5 === 0;
-    axis.push(`<rect x="${n(x)}" y="${n(axisY)}" width="1" height="${major ? 9 : 5}"/>`);
-    if (major) labels.push(`<text x="${n(x)}" y="${n(axisY + 28)}" text-anchor="middle" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="12" fill="${c.cap}">${(i / 10).toFixed(1)} s</text>`);
+  const axis = [], labels = [];
+  if (withAxis) {
+    const axisY = MY + (98 + 16 + 11) * S + 46;
+    // the axis follows the left stub's leading edge, where every exposure starts
+    const lead = (barX(0) - r) * S;
+    const x0 = MX - (F - 1) * dx + lead, x1 = MX + lead;
+    axis.push(`<rect x="${n(x0)}" y="${n(axisY)}" width="${n(x1 - x0)}" height="1"/>`);
+    for (let i = 0; i <= WIN * 10 + 1e-9; i++) {
+      const x = x0 + ((i / 10) / WIN) * (x1 - x0);
+      const major = i % 5 === 0;
+      axis.push(`<rect x="${n(x)}" y="${n(axisY)}" width="1" height="${major ? 9 : 5}"/>`);
+      if (major) labels.push(`<text x="${n(x)}" y="${n(axisY + 28)}" text-anchor="middle" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="12" fill="${c.cap}">${(i / 10).toFixed(1)} s</text>`);
+    }
   }
 
   const g = grain('grain', t.dark ? 0.05 : 0.035);
   const wv = t.id === 'carbon' ? weave(t) : null;
+  // the vignette is clear (transparent out to 0.4 of its radius) over the resting mark
   const defs = g.defs + (wv ? wv.defs : '') +
-    `<radialGradient id="vig" cx=".6" cy=".46" r=".9"><stop offset=".4" stop-color="${c.bg}" stop-opacity="0"/><stop offset="1" stop-color="${c.fog}" stop-opacity="${t.dark ? 0.65 : 0.4}"/></radialGradient>`;
+    `<radialGradient id="vig" cx="${vig[0]}" cy="${vig[1]}" r=".9"><stop offset=".4" stop-color="${c.bg}" stop-opacity="0"/><stop offset="1" stop-color="${c.fog}" stop-opacity="${t.dark ? 0.65 : 0.4}"/></radialGradient>`;
   const body = [
     `<rect width="${VW}" height="${VH}" fill="${c.bg}"/>`,
     wv ? wv.layer : '',
     out.join('\n'),
     `<g fill="${c.ember}">${rest}</g>`,
-    `<g fill="${c.gray}" opacity=".45">${axis.join('')}</g>`,
+    axis.length ? `<g fill="${c.gray}" opacity=".45">${axis.join('')}</g>` : '',
     labels.join(''),
     `<rect width="${VW}" height="${VH}" fill="url(#vig)"/>`,
     g.layer,
