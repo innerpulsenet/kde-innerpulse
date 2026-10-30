@@ -14,7 +14,8 @@ import { colorScheme, konsoleScheme, konsoleProfile, contrastGate } from './lib/
 import { plasmaTheme, desktopThemeId } from './lib/plasma.mjs';
 import { auroraeTheme } from './lib/aurorae.mjs';
 import { fieldWallpaper, ribbonWallpaper, WALLPAPER_SIZES } from './lib/wallpaper.mjs';
-import { horizonWallpaper, exposureWallpaper } from './lib/wallpaper-art.mjs';
+import { horizonWallpaper, exposureWallpaper, quietWallpaper } from './lib/wallpaper-art.mjs';
+import { barHeights, MARK } from './lib/mark.mjs';
 import { preview } from './lib/preview.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -85,9 +86,11 @@ log('Aurorae decorations');
 // 4. wallpapers: images/ is the paper rendition, images_dark/ the ink one; Plasma picks by color scheme
 const wallpapers = [
   ['innerpulse-exposure', 'innerpulse Exposure', 'A long exposure of one beat: 96 exposures over 1.6 s that resolve into the mark at rest', exposureWallpaper],
-  ['innerpulse-horizon', 'innerpulse Horizon', 'One beat in depth: 80 readings receding to a horizon, the front row live', horizonWallpaper],
+  ['innerpulse-horizon', 'innerpulse Horizon', 'One beat in depth: 80 readings receding to a horizon, the front row the latest', horizonWallpaper],
   ['innerpulse-field', 'innerpulse Field', 'The field frozen: a waterfall of the mark’s bar with the mark cleaned out of the noise', fieldWallpaper],
   ['innerpulse-ribbon', 'innerpulse Ribbon', 'The ribbon: the mark’s envelope as a strip twisted two beats', (t) => ribbonWallpaper(t, BRAND)],
+  // install.sh --quiet-second-screen puts this on every screen but the primary one
+  ['innerpulse-exposure-quiet', 'innerpulse Exposure (quiet)', 'The Exposure ground with nothing on it, for a second screen', quietWallpaper],
 ];
 const sizes = fast ? WALLPAPER_SIZES.filter(([w]) => w === 2560) : WALLPAPER_SIZES;
 for (const [id, name, desc, draw] of wallpapers) {
@@ -102,13 +105,15 @@ for (const [id, name, desc, draw] of wallpapers) {
   }
   log('wallpaper', id);
 }
-// Carbon gets its own package: Exposure over a carbon-fiber weave (one ground, so images/ only)
-{
-  const id = 'innerpulse-carbon';
+// Carbon gets its own packages: Exposure over a carbon-fiber weave, and its quiet ground (one ground, so images/ only)
+for (const [id, name, desc, draw] of [
+  ['innerpulse-carbon', 'innerpulse Carbon', 'A long exposure of one beat over a carbon-fiber weave', exposureWallpaper],
+  ['innerpulse-carbon-quiet', 'innerpulse Carbon (quiet)', 'The Carbon ground with nothing on it, for a second screen', quietWallpaper],
+]) {
   put(`wallpapers/${id}/metadata.json`, JSON.stringify({
-    KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: 'A long exposure of one beat over a carbon-fiber weave', Id: id, License: 'MIT', Name: 'innerpulse Carbon', Version: VERSION },
+    KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: desc, Id: id, License: 'MIT', Name: name, Version: VERSION },
   }, null, 4) + '\n');
-  const svg = putBuild(`wallpapers/${id}.svg`, exposureWallpaper(carbon));
+  const svg = putBuild(`wallpapers/${id}.svg`, draw(carbon));
   for (const [w, h] of sizes) raster(svg, join(DIST, `wallpapers/${id}/contents/images/${w}x${h}.png`), w, h);
   raster(svg, join(DIST, `wallpapers/${id}/contents/screenshot.png`), 400, 225);
   log('wallpaper', id);
@@ -175,5 +180,23 @@ Theme=net.innerpulse.ink
 // 6. the mark as an icon, for the application launcher and anything else that asks for "innerpulse"
 copyFileSync(join(BRAND, 'innerpulse-glyph.svg'), put('icons/hicolor/scalable/apps/innerpulse.svg', ''));
 copyFileSync(join(BRAND, 'innerpulse-icon.svg'), put('icons/hicolor/scalable/apps/innerpulse-app.svg', ''));
+// Pixel-hinted copies for the sizes a panel asks for, so the bars' edges land on whole pixels instead of the
+// scalable glyph's fractional ones. Bar and gap widths are chosen per size; heights are the resting heights scaled
+// by the layout's width (the master's 206-unit span) and rounded to N's parity, so each bar centers on a whole
+// pixel. At 22 and 24 px the bar-to-gap ratio is 1:1, not the master's roughly 1.5:1, because 3 + 1 bars would be
+// 23 px wide. Never animated, no effects. Other sizes fall back to the scalable glyph.
+for (const [N, bar, gap, rx] of [[22, 2, 2, 0.5], [24, 2, 2, 0.5], [32, 3, 2, 0.5], [48, 4, 3, 0.75]]) {
+  const width = 6 * bar + 5 * gap, x0 = Math.floor((N - width) / 2);
+  const s = width / (2 * (MARK.span + MARK.stroke / 2));
+  const master = barHeights().map((h) => 2 * h + MARK.stroke);
+  const hs = master.map((h) => { const v = h * s; return 2 * Math.round((v - (N % 2)) / 2) + (N % 2); });
+  // the mark's ranking must survive the rounding: bar 5 > bar 2 > bar 3 > bar 4 > bars 1 and 6, which are equal
+  const [a, b, c, d, e, f] = hs;
+  if (!(e > b && b > c && c > d && d > a && a === f && a > 0)) throw new Error(`icon ${N}: rounding broke the mark's ranking (${hs})`);
+  if (x0 < 0 || x0 + width > N || Math.max(...hs) > N) throw new Error(`icon ${N}: the bars do not fit (${hs})`);
+  const rects = hs.map((h, i) => `<rect x="${x0 + i * (bar + gap)}" y="${(N - h) / 2}" width="${bar}" height="${h}" rx="${rx}"/>`).join('');
+  put(`icons/hicolor/${N}x${N}/apps/innerpulse.svg`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${N} ${N}" width="${N}" height="${N}"><g fill="#f43a2a">${rects}</g></svg>\n`);
+}
 log('icons');
 console.log(`built ${VERSION} → ${DIST}`);
