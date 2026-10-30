@@ -95,7 +95,17 @@ do_fonts() {
 
 save_previous() {
   mkdir -p "$STATE"
-  [[ -f "$STATE/previous.conf" ]] && return # keep the state from before the first apply
+  if [[ -f "$STATE/previous.conf" ]]; then # keep the state from before the first apply
+    # State saved by an older install.sh has no accent lines. That script never touched the accent, so the
+    # current one is still the user's own: add it before this apply clears it.
+    if ! grep -q '^accent=' "$STATE/previous.conf"; then
+      {
+        echo "accent=$(kreadconfig6 --file kdeglobals --group General --key AccentColor)"
+        echo "accentwall=$(kreadconfig6 --file kdeglobals --group General --key accentColorFromWallpaper)"
+      } >> "$STATE/previous.conf"
+    fi
+    return
+  fi
   {
     echo "lookandfeel=$(kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage)"
     echo "colorscheme=$(kreadconfig6 --file kdeglobals --group General --key ColorScheme)"
@@ -131,8 +141,9 @@ do_apply() {
 
   # The scheme's own selection is the accent: a custom accent or one taken from the wallpaper would retint it.
   # Set before the scheme is applied, so the selection is baked without a tint (the previous accent is saved).
-  kwriteconfig6 --file kdeglobals --group General --key AccentColor --delete
-  kwriteconfig6 --file kdeglobals --group General --key accentColorFromWallpaper false
+  # --notify, so a running plasmashell stops taking the accent from the wallpaper before the wallpaper changes.
+  kwriteconfig6 --notify --file kdeglobals --group General --key AccentColor --delete
+  kwriteconfig6 --notify --file kdeglobals --group General --key accentColorFromWallpaper false
 
   # The global theme sets colors, Plasma theme, window decoration, splash, cursor and icons. It does not
   # touch panels or widgets (no --resetLayout).
@@ -200,12 +211,14 @@ do_restore() {
   [[ -f "$f" ]] || { say "nothing to restore"; return; }
   # shellcheck disable=SC1090
   declare -A p; while IFS='=' read -r k v; do p[$k]="$v"; done < "$f"
-  # The accent first, so the schemes applied below bake their selection with it. State saved by an older
-  # install.sh has no accent lines: those keys were then never set by us, so they are deleted.
+  # The accent first, so the schemes applied below bake their selection with it (--notify, so a restored
+  # wallpaper accent takes effect live). State saved by an older install.sh, and only ever applied by it, has
+  # no accent lines: that script never touched the accent, so it is left as it is.
   for pair in "accent:AccentColor" "accentwall:accentColorFromWallpaper"; do
     local k="${pair%%:*}" key="${pair##*:}"
-    if [[ -n "${p[$k]:-}" ]]; then kwriteconfig6 --file kdeglobals --group General --key "$key" "${p[$k]}"
-    else kwriteconfig6 --file kdeglobals --group General --key "$key" --delete; fi
+    [[ -v "p[$k]" ]] || continue
+    if [[ -n "${p[$k]}" ]]; then kwriteconfig6 --notify --file kdeglobals --group General --key "$key" "${p[$k]}"
+    else kwriteconfig6 --notify --file kdeglobals --group General --key "$key" --delete; fi
   done
   [[ -n "${p[lookandfeel]}" ]] && lookandfeeltool -a "${p[lookandfeel]}" >/dev/null 2>&1 || true
   [[ -n "${p[colorscheme]}" ]] && plasma-apply-colorscheme "${p[colorscheme]}" >/dev/null 2>&1 || true
