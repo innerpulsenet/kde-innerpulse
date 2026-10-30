@@ -86,7 +86,7 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 | (none) | Copy the theme into place. Nothing on screen changes |
 | `--apply ink`, `paper` or `carbon` | Switch the desktop to that variant. Your previous global theme, colors, decoration, splash, widget style, Konsole profile and fonts are saved first |
 | `--style breeze` | With `--apply`: flat Breeze widgets instead of Oxygen's glass |
-| `--quiet-second-screen` | With `--apply` on more than one screen: the mark on the primary screen only, and the same ground with nothing on it everywhere else. Without it, every screen shows the same wallpaper |
+| `--same-wallpaper` | With `--apply`: every screen shows the same wallpaper. Without it, on more than one screen, the mark stays on the primary screen only and every other screen gets the same ground with nothing on it |
 | `--fonts` | Fetch Inter, Instrument Sans, JetBrains Mono and Syne (SIL OFL) into `~/.local/share/fonts/innerpulse`. With them installed, `--apply` sets the interface and fixed-width fonts |
 | `--launcher-icon` | Put the mark on the application launcher. It ships pixel-snapped at 22, 24, 32 and 48 px, so it stays sharp at panel size |
 | `--restore` | Put back what was active before the first `--apply` |

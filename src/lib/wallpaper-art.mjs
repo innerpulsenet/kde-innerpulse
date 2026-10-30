@@ -175,8 +175,9 @@ export function exposureWallpaper(t) {
     `<rect width="${VW}" height="${VH}" fill="url(#vig)"/>`,
     g.layer,
     caption([
-      // in seconds, not pixels: Plasma scales the image to the screen, so a pixel spacing is true at one size only
-      `ONE BEAT · ${F} EXPOSURES OVER ${WIN} s, ${(WIN / (F - 1)).toFixed(3)} s APART`,
+      // in seconds, not pixels: Plasma scales the image to the screen, so a pixel spacing is true at one size only;
+      // printed as a fraction because WIN/(F-1) has no short exact decimal
+      `ONE BEAT · ${F} EXPOSURES OVER ${WIN} s, ${WIN}/${F - 1} s APART`,
       'ENDS AT REST · h = rest(84·|sin(2πi/5 − π/30)|)',
     ], 72, CAP_Y, c.cap, { anchor: 'start' }),
   ].join('\n');

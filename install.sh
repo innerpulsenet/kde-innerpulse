@@ -7,8 +7,9 @@
 #                                    from the google/fonts repository into ~/.local/share/fonts/innerpulse
 #   ./install.sh --launcher-icon     set the application launcher's icon to the mark
 #   ./install.sh --style breeze      with --apply: flat Breeze widgets instead of Oxygen's glass (default oxygen)
-#   ./install.sh --quiet-second-screen  with --apply: the mark on the primary screen only; other screens get the
-#                                    same ground with nothing on it (default: every screen shows the same wallpaper)
+#   ./install.sh --same-wallpaper    with --apply: every screen shows the same wallpaper (default: on more than one
+#                                    screen, the mark on the primary screen only and the same ground, with nothing
+#                                    on it, everywhere else)
 #   ./install.sh --restore           switch back to what was active before the last --apply
 #   ./install.sh --uninstall         --restore, then remove every installed file
 #
@@ -153,15 +154,16 @@ do_apply() {
   kwriteconfig6 --file oxygenrc --group Common --key UseBackgroundGradient "$gradient"
   reconfigure_kwin
 
-  # Wallpaper on every screen (unless --quiet-second-screen), and the same image behind the lock screen. The Exposure package carries both
+  # Wallpaper on every screen, and the same image behind the lock screen. The Exposure package carries both
   # grounds (Plasma shows the ink one under a dark scheme); Carbon has its own.
   local wp=innerpulse-exposure ground=images
   [[ $variant == ink ]] && ground=images_dark
   [[ $variant == carbon ]] && wp=innerpulse-carbon
   plasma-apply-wallpaperimage "$DATA/wallpapers/$wp" >/dev/null 2>&1 || true
-  # Opt-in: keep the mark on the primary screen (screen 0) and give every other screen the quiet ground, so the desk
-  # shows one ember mark, not one per screen. Containments of other activities that sit on no screen are skipped.
-  if (( QUIET )); then
+  # Then, unless --same-wallpaper: on more than one screen, keep the mark on the primary screen (screen 0) and give
+  # every other screen the quiet ground, so the desk shows one ember mark, not one per screen. Containments of other
+  # activities that sit on no screen are skipped.
+  if (( ! SAME )); then
     if have qdbus6; then
       local main="file://$DATA/wallpapers/$wp" quiet="file://$DATA/wallpapers/$wp-quiet"
       qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
@@ -173,7 +175,7 @@ do_apply() {
           d.writeConfig('Image', d.screen === 0 ? main : quiet);
         });" >/dev/null 2>&1 || true
     else
-      say "--quiet-second-screen needs qdbus6; every screen keeps the same wallpaper"
+      say "no qdbus6: every screen keeps the same wallpaper"
     fi
   fi
   local lockimg="$DATA/wallpapers/$wp/contents/$ground/2560x1440.png"
@@ -257,23 +259,23 @@ do_uninstall() {
   say "removed (fonts in $FONTDIR, if fetched, are left in place)"
 }
 
-apply="" fonts=0 icon=0 action=install STYLE=Oxygen QUIET=0
+apply="" fonts=0 icon=0 action=install STYLE=Oxygen SAME=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply) apply=ink; case "${2:-}" in ink|paper|carbon) apply="$2"; shift ;; esac ;;
     --fonts) fonts=1 ;;
     --style) case "${2:-}" in oxygen) STYLE=Oxygen ;; breeze) STYLE=Breeze ;; *) die "--style takes oxygen or breeze" ;; esac; shift ;;
     --launcher-icon) icon=1 ;;
-    --quiet-second-screen) QUIET=1 ;;
+    --same-wallpaper) SAME=1 ;;
     --restore) action=restore ;;
     --uninstall) action=uninstall ;;
-    -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,/^[^#]/{/^#/p}' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown option: $1 (try --help)" ;;
   esac
   shift
 done
 
-(( QUIET )) && [[ -z "$apply" ]] && die "--quiet-second-screen goes with --apply"
+(( SAME )) && [[ -z "$apply" ]] && die "--same-wallpaper goes with --apply"
 case "$action" in
   restore) do_restore; exit 0 ;;
   uninstall) do_uninstall; exit 0 ;;
