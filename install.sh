@@ -13,6 +13,9 @@
 #   ./install.sh --frosted-titlebar  with --apply: the active title bar is translucent, blurred behind (default opaque)
 #   ./install.sh --quiet-second-screen  with --apply: on more than one screen, the wallpaper on the primary screen only
 #                                    and its black, with nothing on it, everywhere else (default: same everywhere)
+#   ./install.sh --boot              install the boot screen (a Plymouth theme) system-wide and select it. Asks for
+#                                    sudo: it writes /usr/share/plymouth/themes/innerpulse and rebuilds the initramfs
+#   ./install.sh --boot-restore      select the previous boot screen again and remove ours (sudo)
 #   ./install.sh --restore           switch back to what was active before the last --apply
 #   ./install.sh --uninstall         --restore, then remove every installed file
 #
@@ -27,6 +30,10 @@ FONTDIR="$DATA/fonts/innerpulse"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
 # The application style's themes, which Kvantum reads from ~/.config/Kvantum rather than ~/.local/share
 KVANTUM=(InnerpulseCarbon InnerpulseInk InnerpulsePaper)
+# The cursor themes. Many builds of libXcursor, which Plasma's cursor settings list themes through, search
+# ~/.icons but not ~/.local/share/icons, so each theme is linked there as well
+CURSORS=(innerpulse-cursors innerpulse-cursors-still)
+LEGACY_ICONS="$HOME/.icons"
 
 INSTALLED=(
   "color-schemes/InnerpulseInk.colors"
@@ -197,6 +204,7 @@ do_install() {
     rm -rf "${CONF:?}/Kvantum/$id"
     cp -r "$DIST/Kvantum/$id" "$CONF/Kvantum/$id"
   done
+  link_cursors
   tune_kvantum_animation
   # Konsole profiles name JetBrains Mono; fall back to Hack (KDE's default mono) when it is not installed.
   if ! has_font '^JetBrains Mono'; then
@@ -563,6 +571,90 @@ do_restore() {
   say "restored the settings saved before the last apply, the lock screen's included (the desktop wallpaper is left as it is)"
 }
 
+# Link the cursor themes into ~/.icons. A folder of that name that is not our link is left alone.
+link_cursors() {
+  local id
+  mkdir -p "$LEGACY_ICONS"
+  for id in "${CURSORS[@]}"; do
+    if [[ -L "$LEGACY_ICONS/$id" || ! -e "$LEGACY_ICONS/$id" ]]; then
+      ln -sfn "$DATA/icons/$id" "$LEGACY_ICONS/$id"
+    fi
+  done
+}
+
+unlink_cursors() {
+  local id
+  for id in "${CURSORS[@]}"; do
+    [[ -L "$LEGACY_ICONS/$id" ]] && rm -f "$LEGACY_ICONS/$id"
+  done
+  rmdir "$LEGACY_ICONS" 2>/dev/null || true
+}
+
+# The boot screen is the one part that is system-wide: Plymouth reads themes from /usr/share/plymouth/themes and
+# shows them from the initramfs, before any home folder is mounted. So it has its own two actions, which ask for
+# sudo, and --uninstall leaves it alone.
+BOOT_ID=innerpulse
+BOOT_DIR=/usr/share/plymouth/themes/$BOOT_ID
+BOOT_FILE=$BOOT_DIR/$BOOT_ID.plymouth
+BOOT_LINK=/usr/share/plymouth/themes/default.plymouth
+as_root() { if (( EUID == 0 )); then "$@"; else sudo "$@"; fi; }
+
+rebuild_initramfs() {
+  say "rebuilding the initramfs (this takes a minute)"
+  if have update-initramfs; then as_root update-initramfs -u
+  elif have dracut; then as_root dracut -f
+  else say "no update-initramfs or dracut found: rebuild your initramfs by hand"; fi
+}
+
+do_boot() {
+  local src="$DIST/plymouth/themes/$BOOT_ID" prev=""
+  [[ -f "$src/$BOOT_ID.script" ]] || die "missing from dist/: plymouth/themes/$BOOT_ID. Run: node src/build.mjs"
+  [[ -d /usr/share/plymouth/themes ]] || die "Plymouth is not installed (no /usr/share/plymouth/themes)"
+  (( EUID == 0 )) || have sudo || die "--boot needs root: run it with sudo"
+  # what is selected now, kept beside the theme for --boot-restore (not when it is already ours)
+  if have update-alternatives && update-alternatives --query default.plymouth >/dev/null 2>&1; then
+    prev="$(update-alternatives --query default.plymouth | awk '/^Status:/{s=$2} /^Value:/{v=$2} END{print s" "v}')"
+  elif have plymouth-set-default-theme; then
+    prev="name $(plymouth-set-default-theme)"
+  fi
+  as_root rm -rf "$BOOT_DIR.new"
+  as_root cp -r "$src" "$BOOT_DIR.new"
+  if [[ -f "$BOOT_DIR/previous" ]]; then as_root cp "$BOOT_DIR/previous" "$BOOT_DIR.new/previous"
+  elif [[ -n "$prev" && "$prev" != *"$BOOT_ID"* ]]; then printf '%s\n' "$prev" | as_root tee "$BOOT_DIR.new/previous" >/dev/null; fi
+  as_root rm -rf "$BOOT_DIR"
+  as_root mv "$BOOT_DIR.new" "$BOOT_DIR"
+  as_root chmod -R a+rX "$BOOT_DIR"
+  if have update-alternatives && [[ -L "$BOOT_LINK" ]]; then
+    # a low priority, so it is only ever shown because it was chosen
+    as_root update-alternatives --install "$BOOT_LINK" default.plymouth "$BOOT_FILE" 10
+    as_root update-alternatives --set default.plymouth "$BOOT_FILE"
+  elif have plymouth-set-default-theme; then
+    as_root plymouth-set-default-theme "$BOOT_ID"
+  else
+    die "no update-alternatives or plymouth-set-default-theme: select $BOOT_FILE by hand"
+  fi
+  rebuild_initramfs
+  say "boot screen installed: it shows from the next start, and on the way down"
+}
+
+do_boot_restore() {
+  local status="" value=""
+  [[ -d "$BOOT_DIR" ]] || { say "the boot screen is not installed"; return 0; }
+  (( EUID == 0 )) || have sudo || die "--boot-restore needs root: run it with sudo"
+  [[ -f "$BOOT_DIR/previous" ]] && read -r status value < "$BOOT_DIR/previous"
+  if have update-alternatives && update-alternatives --query default.plymouth >/dev/null 2>&1; then
+    # removing the chosen alternative puts the selection back on automatic: the distribution's own
+    as_root update-alternatives --remove default.plymouth "$BOOT_FILE" || true
+    [[ "$status" == manual && -f "$value" ]] && as_root update-alternatives --set default.plymouth "$value"
+  elif have plymouth-set-default-theme; then
+    if [[ "$status" == name && -n "$value" ]]; then as_root plymouth-set-default-theme "$value"
+    else as_root plymouth-set-default-theme --reset; fi
+  fi
+  as_root rm -rf "$BOOT_DIR"
+  rebuild_initramfs
+  say "boot screen removed"
+}
+
 do_uninstall() {
   local lnf=""
   [[ -f "$STATE/previous.conf" ]] && lnf="$(sed -n 's/^lookandfeel=//p' "$STATE/previous.conf")"
@@ -572,9 +664,12 @@ do_uninstall() {
   reset_wallpaper_if_ours "$lnf"
   for rel in "${INSTALLED[@]}" "${RETIRED[@]}"; do rm -rf "${DATA:?}/$rel"; done
   for id in "${KVANTUM[@]}"; do rm -rf "${CONF:?}/Kvantum/$id"; done
+  unlink_cursors
   rmdir "$CONF/Kvantum" 2>/dev/null || true
   rm -rf "$STATE"
   say "removed (fonts in $FONTDIR, if fetched, are left in place)"
+  [[ -d "$BOOT_DIR" ]] && say "the boot screen is system-wide and still installed: ./install.sh --boot-restore removes it"
+  return 0
 }
 
 apply="" fonts=0 icon=0 action=install STYLE="" DECO="" style_given="" QUIET=0
@@ -586,6 +681,8 @@ while [[ $# -gt 0 ]]; do
     --frosted-titlebar) DECO=-frosted ;;
     --launcher-icon) icon=1 ;;
     --quiet-second-screen) QUIET=1 ;;
+    --boot) action=boot ;;
+    --boot-restore) action=boot-restore ;;
     --restore) action=restore ;;
     --uninstall) action=uninstall ;;
     -h|--help) sed -n '2,/^[^#]/{/^#/p}' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -601,6 +698,8 @@ done
 case "$action" in
   restore) do_restore; exit 0 ;;
   uninstall) do_uninstall; exit 0 ;;
+  boot) do_boot; exit 0 ;;
+  boot-restore) do_boot_restore; exit 0 ;;
 esac
 # fonts first, so the Konsole profiles can name JetBrains Mono when it has just been fetched
 (( fonts )) && do_fonts
