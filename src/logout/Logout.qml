@@ -3,9 +3,9 @@
 
     The prompt itself (buttons, countdown, keyboard handling, the other-users warning) is Breeze's, loaded at
     run time from the system's copy, so nothing of it is copied here. This file adds the brand on top: the
-    ink ground in place of Breeze's black, the countdown set in JetBrains Mono (its words and numbers are
-    Breeze's, so it always says what will happen and when), and the mark above the avatar, beating at the
-    ambient tempo while the choice waits (AmbientMark.qml; still when animations are turned off). Breeze's
+    carbon ground in place of Breeze's black, the countdown set in JetBrains Mono (its words and numbers are
+    Breeze's, so it always says what will happen and when), and the plate above the avatar, a pulse of light
+    through it at the ambient tempo while the choice waits (AmbientMark.qml; still when animations are turned off). Breeze's
     prompt is found through the data dirs, so a Plasma installed under another prefix works too. If it cannot
     be loaded, a plain screen says so and still offers Log Out, Restart and Shut Down; Escape goes back.
 
@@ -36,7 +36,7 @@ Item {
     signal lockScreenRequested()
     signal cancelSoftwareUpdateRequested()
 
-    readonly property color ground: "#0a0908" /*@GROUND@*/
+    readonly property color ground: "#0b0d10" /*@GROUND@*/
     readonly property color ember: "#f43a2a" /*@EMBER@*/
     readonly property color text1: "#ece7df" /*@TEXT@*/
 
@@ -83,10 +83,10 @@ Item {
     // its own, so a click on it still cancels like a click anywhere else
     AmbientMark {
         visible: prompt.status === Loader.Ready
-        width: Kirigami.Units.gridUnit * 5.5
+        width: Kirigami.Units.gridUnit * 4.5
         height: width
         anchors.horizontalCenter: parent.horizontalCenter
-        y: root.height / 2 - Kirigami.Units.gridUnit * 10.5 - height
+        y: root.height / 2 - Kirigami.Units.gridUnit * 11 - height
         color: root.ember
     }
 

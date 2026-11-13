@@ -1,6 +1,7 @@
-// The three grounds the theme ships on, taken from the innerpulse brand tokens (2026-10-25). Ink is the
-// default: a desktop is a screen, and the brand keeps screens ink-first. Paper is the light variant, with the
-// deep ember and the paper steps of every accent. Carbon is further down.
+// The three grounds the theme ships on, taken from the innerpulse brand tokens. Carbon is the default: since
+// 2026-11-05 the brand's ink is this carbon, and screens stay ink-first. Ink here is the earlier warm ground
+// (2026-10-25), which the brand keeps as an opt-in. Paper is the light variant, with the deep ember and the paper
+// steps of every accent. Carbon is further down.
 //
 // Ember is reserved: the mark, focus rings, the one index tick on a window or popup, the focused task.
 // Selection uses the action red (white text 5.1:1); links take the desktop family's violet, the one

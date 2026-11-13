@@ -2,10 +2,10 @@
 // Builds the innerpulse KDE theme into dist/, laid out like ~/.local/share so install.sh can copy it as is.
 //
 //   node src/build.mjs            everything
-//   node src/build.mjs --fast     skip the large wallpaper renders (3840 and 1920), for quick iteration
+//   node src/build.mjs --fast     package only the 2560 × 1440 wallpapers and lock grounds, for quick iteration
 //
-// Needs node ≥ 20 and rsvg-convert (librsvg). No npm packages.
-import { mkdirSync, writeFileSync, rmSync, copyFileSync, readFileSync } from 'node:fs';
+// Needs node ≥ 20, rsvg-convert (librsvg) and ImageMagick's magick. No npm packages.
+import { mkdirSync, writeFileSync, rmSync, copyFileSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -13,13 +13,13 @@ import { themes, ink, paper, carbon } from './lib/palette.mjs';
 import { colorScheme, konsoleScheme, konsoleProfile, contrastGate } from './lib/colors.mjs';
 import { plasmaTheme, desktopThemeId } from './lib/plasma.mjs';
 import { auroraeTheme } from './lib/aurorae.mjs';
-import { fieldWallpaper, ribbonWallpaper, WALLPAPER_SIZES } from './lib/wallpaper.mjs';
-import { horizonWallpaper, exposureWallpaper, quietWallpaper, lockWallpaper, EXPOSURE_MARK, LOCK_MARK, ART } from './lib/wallpaper-art.mjs';
-import { MARK, PULSE, TEMPO, barHeights } from './lib/mark.mjs';
-import { preview, splashPreview } from './lib/preview.mjs';
+import { WALLPAPERS, DEFAULT_WALLPAPER, WALLPAPER_SIZES, OLED_GROUND, LOCK_MARK, LOCK_SIZES, ART, quietWallpaper, lockWallpaper } from './lib/wallpaper.mjs';
+import { MARK, PLATE, PULSE, TEMPO, LAMP, barHeights } from './lib/mark.mjs';
+import { preview, splashPreview, SPLASH } from './lib/preview.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BRAND = join(ROOT, 'brand');
+const ART_DIR = join(ROOT, 'wallpapers'); // the OLED wallpaper set, as finished JPEGs
 const DIST = join(ROOT, 'dist');
 const BUILD = join(ROOT, 'build'); // intermediate SVGs
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -59,17 +59,20 @@ const log = (...a) => console.log('·', ...a);
 // trailing /*@KEY@*/ comment; the build swaps in the generator's value, so mark.mjs and palette.mjs stay the one
 // source. An unknown key, or a tag the pattern cannot place, fails the build.
 const q = (v) => JSON.stringify(v).replace(/,/g, ', ');
+// Screens (the splash) stand on the brand's ink, which is carbon.
 const QML_VALUES = {
-  GROUND: q(ink.ground), EMBER: q(ink.mark), TEXT: q(ink.text), TEXT3: q(ink.text3),
+  GROUND: q(carbon.ground), EMBER: q(carbon.mark), TEXT: q(carbon.text), TEXT3: q(carbon.text3),
   REST_H: q(barHeights().map((h) => +h.toFixed(2))),
-  BEATS: MARK.beat, SPAN: MARK.span, STROKE: MARK.stroke, CORNER: MARK.corner, BOX: 220,
-  WORKING: TEMPO.working, AMBIENT: TEMPO.ambient, RISE: PULSE.rise, PULSE_W: PULSE.width, LAG: PULSE.lag,
+  BEATS: MARK.beat, SPAN: MARK.span, STROKE: MARK.stroke, CORNER: MARK.corner,
+  PLATE: PLATE.size, PLATE_CORNER: PLATE.corner, CUT: PLATE.cut, LAMP: q(LAMP),
+  WORKING: TEMPO.working, AMBIENT: TEMPO.ambient, PULSE_W: PULSE.width, LAG: PULSE.lag,
+  DRAW_IN: PULSE.drawIn, DRAW_LAG: PULSE.drawLag, STILL_UNDER: 48,
+  SPLASH_PLATE: SPLASH.plate, SPLASH_LIFT: SPLASH.lift,
   ART_W: ART.width, ART_H: ART.height,
-  EXPOSURE_X: EXPOSURE_MARK.mx, EXPOSURE_Y: EXPOSURE_MARK.my, EXPOSURE_BOX: EXPOSURE_MARK.box,
-  LOCK_X: LOCK_MARK.mx, LOCK_Y: LOCK_MARK.my, LOCK_BOX: LOCK_MARK.box,
+  LOCK_X: LOCK_MARK.mx, LOCK_Y: LOCK_MARK.my, LOCK_SIZE: LOCK_MARK.size,
   LOCK_MARKS: `(${q(Object.fromEntries(themes.map((t) => [t.id, t.mark])))})`,
   LOCK_GROUNDS: `(${q(Object.fromEntries(themes.map((t) => [t.id, t.ground])))})`,
-  SIZES: q((fast ? WALLPAPER_SIZES.filter(([w]) => w === 2560) : WALLPAPER_SIZES).map(([w, h]) => [w, h]).sort((a, b) => a[0] - b[0])),
+  SIZES: q(fast ? LOCK_SIZES.filter(([w]) => w === 2560) : LOCK_SIZES),
 };
 const qml = (rel) => {
   const src = readFileSync(join(ROOT, rel), 'utf8');
@@ -110,52 +113,43 @@ for (const t of themes) for (const frosted of [false, true]) {
 }
 log('Aurorae decorations');
 
-// 4. wallpapers: images/ is the paper rendition, images_dark/ the ink one; Plasma picks by color scheme
-const wallpapers = [
-  ['innerpulse-exposure', 'innerpulse Exposure', 'A long exposure of one beat: 96 exposures over 1.6 s that resolve into the mark at rest', exposureWallpaper],
-  ['innerpulse-horizon', 'innerpulse Horizon', 'One beat in depth: 80 readings receding to a horizon, the front row the latest', horizonWallpaper],
-  ['innerpulse-field', 'innerpulse Field', 'The field frozen: a waterfall of the mark’s bar with the mark cleaned out of the noise', fieldWallpaper],
-  ['innerpulse-ribbon', 'innerpulse Ribbon', 'The ribbon: the mark’s envelope as a strip twisted two beats', (t) => ribbonWallpaper(t, BRAND)],
-  // install.sh --quiet-second-screen puts this on every screen but the primary one
-  ['innerpulse-exposure-quiet', 'innerpulse Exposure (quiet)', 'The Exposure ground with nothing on it, for a second screen', quietWallpaper],
-];
+// 4. wallpapers: the OLED set, packaged as they are, one ground for every variant (images/ only)
+const meta = (id, name, desc) => put(`wallpapers/${id}/metadata.json`, JSON.stringify({
+  KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: desc, Id: id, License: 'All rights reserved: see BRAND.md', Name: name, Version: VERSION },
+}, null, 4) + '\n');
 const sizes = fast ? WALLPAPER_SIZES.filter(([w]) => w === 2560) : WALLPAPER_SIZES;
-for (const [id, name, desc, draw] of wallpapers) {
-  put(`wallpapers/${id}/metadata.json`, JSON.stringify({
-    KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: desc, Id: id, License: 'MIT', Name: name, Version: VERSION },
-  }, null, 4) + '\n');
-  for (const t of [ink, paper]) {
-    const svg = putBuild(`wallpapers/${id}-${t.id}.svg`, draw(t));
-    const dir = t.dark ? 'images_dark' : 'images';
-    for (const [w, h] of sizes) raster(svg, join(DIST, `wallpapers/${id}/contents/${dir}/${w}x${h}.png`), w, h);
-    if (t.dark) raster(svg, join(DIST, `wallpapers/${id}/contents/screenshot.png`), 400, 225);
+for (const [set, id, name, desc] of WALLPAPERS) {
+  meta(id, `innerpulse ${name}`, `${desc} (${set})`);
+  for (const [w, h] of sizes) {
+    const src = join(ART_DIR, id, `${w}x${h}.jpg`);
+    if (!existsSync(src)) throw new Error(`wallpapers/${id}: missing ${w}x${h}.jpg`);
+    copyFileSync(src, put(`wallpapers/${id}/contents/images/${w}x${h}.jpg`, ''));
   }
-  log('wallpaper', id);
+  execFileSync('magick', [join(ART_DIR, id, '2560x1440.jpg'), '-resize', '400x225', '-quality', '90',
+    put(`wallpapers/${id}/contents/screenshot.jpg`, '')]);
 }
-// Carbon gets its own packages: Exposure over a carbon-fiber weave, and its quiet ground (one ground, so images/ only)
-for (const [id, name, desc, draw] of [
-  ['innerpulse-carbon', 'innerpulse Carbon', 'A long exposure of one beat over a carbon-fiber weave', exposureWallpaper],
-  ['innerpulse-carbon-quiet', 'innerpulse Carbon (quiet)', 'The Carbon ground with nothing on it, for a second screen', quietWallpaper],
-]) {
-  put(`wallpapers/${id}/metadata.json`, JSON.stringify({
-    KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: desc, Id: id, License: 'MIT', Name: name, Version: VERSION },
-  }, null, 4) + '\n');
-  const svg = putBuild(`wallpapers/${id}.svg`, draw(carbon));
+log(`wallpapers: ${WALLPAPERS.length}`);
+// install.sh --quiet-second-screen puts this on every screen but the primary one: the set's black, nothing on it
+{
+  const id = 'innerpulse-quiet';
+  meta(id, 'innerpulse Quiet', 'The wallpapers’ true black with nothing on it, for a second screen');
+  const svg = putBuild(`wallpapers/${id}.svg`, quietWallpaper());
   for (const [w, h] of sizes) raster(svg, join(DIST, `wallpapers/${id}/contents/images/${w}x${h}.png`), w, h);
   raster(svg, join(DIST, `wallpapers/${id}/contents/screenshot.png`), 400, 225);
-  log('wallpaper', id);
+  log('wallpaper', id, OLED_GROUND);
 }
-// The lock screen's grounds: the exposure set low and right, clear of the lock screen's clock, prompt and footer.
-// innerpulse-lock carries both grounds like Exposure; Carbon has its own, as on the desktop.
+// The lock screen's grounds: the variant's ground with the plate at rest, low and to the right, clear of the lock
+// screen's clock, prompt and footer. innerpulse-lock carries Ink and Paper like a light/dark pair; Carbon has its own.
 const lockSvgs = {};
+const lockSizes = fast ? LOCK_SIZES.filter(([w]) => w === 2560) : LOCK_SIZES;
 for (const [id, name, grounds] of [['innerpulse-lock', 'innerpulse Lock', [ink, paper]], ['innerpulse-lock-carbon', 'innerpulse Lock Carbon', [carbon]]]) {
   put(`wallpapers/${id}/metadata.json`, JSON.stringify({
-    KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: 'The lock screen composition: one beat’s long exposure, low and to the right, clear of the clock and the prompt', Id: id, License: 'MIT', Name: name, Version: VERSION },
+    KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: 'The lock screen composition: the plate at rest, low and to the right, clear of the clock and the prompt', Id: id, License: 'All rights reserved: see BRAND.md', Name: name, Version: VERSION },
   }, null, 4) + '\n');
   for (const t of grounds) {
     const svg = lockSvgs[t.id] = putBuild(`wallpapers/${id}-${t.id}.svg`, lockWallpaper(t));
     const dir = t.dark && t.id !== 'carbon' ? 'images_dark' : 'images';
-    for (const [w, h] of sizes) raster(svg, join(DIST, `wallpapers/${id}/contents/${dir}/${w}x${h}.png`), w, h);
+    for (const [w, h] of lockSizes) raster(svg, join(DIST, `wallpapers/${id}/contents/${dir}/${w}x${h}.png`), w, h);
     if (t.dark) raster(svg, join(DIST, `wallpapers/${id}/contents/screenshot.png`), 400, 225);
   }
   log('wallpaper', id);
@@ -168,8 +162,8 @@ for (const [id, name, grounds] of [['innerpulse-lock', 'innerpulse Lock', [ink, 
     KPackageStructure: 'Plasma/Wallpaper',
     KPlugin: {
       Authors: [{ Name: 'innerpulse' }], Category: '',
-      Description: 'For the lock screen only: the innerpulse lock composition with the live mark, beating every 4.5 s',
-      Icon: 'innerpulse', Id: 'net.innerpulse.lock', License: 'MIT', Name: 'innerpulse Lock (the live mark)', Version: VERSION,
+      Description: 'For the lock screen only: the innerpulse lock composition with the live plate, a pulse of light through it every 4.5 s',
+      Icon: 'innerpulse-app', Id: 'net.innerpulse.lock', License: 'MIT', Name: 'innerpulse Lock (the live mark)', Version: VERSION,
     },
     'X-KDE-ParentApp': 'org.kde.plasmashell',
   }, null, 4) + '\n');
@@ -180,9 +174,9 @@ for (const [id, name, grounds] of [['innerpulse-lock', 'innerpulse Lock', [ink, 
   log('lock screen plugin');
 }
 
-// 5. look-and-feel packages, with the splash in the Ink package (the Paper package points at it: a splash is a
-//    screen, and screens stay ink). Every package carries the logout prompt: the greeter reads it from the active
-//    global theme and has no key to point elsewhere.
+// 5. look-and-feel packages, with the splash in the Ink package (the others point at it: a splash is a screen, and
+//    screens stand on the brand's ink, which is carbon). Every package carries the logout prompt: the greeter reads
+//    it from the active global theme and has no key to point elsewhere.
 for (const t of themes) {
   const id = `net.innerpulse.${t.id}`;
   const base = `plasma/look-and-feel/${id}`;
@@ -192,9 +186,9 @@ for (const t of themes) {
       Authors: [{ Name: 'innerpulse' }],
       Category: '',
       Description: {
-        ink: 'innerpulse on ink: warm ink grounds, machined corners, hairlines and one ember signal',
+        ink: 'innerpulse on warm ink: the earlier warm grounds, machined corners, hairlines and one ember signal',
         paper: 'innerpulse on paper: the light ground, the deep ember, the same instrument',
-        carbon: 'innerpulse in carbon and brushed steel: cool carbon grounds, steel text, blued-steel selection, one ember signal',
+        carbon: 'innerpulse in carbon and brushed steel, the default: cool carbon grounds, steel text, blued-steel selection, one ember signal',
       }[t.id],
       Id: id, License: 'MIT', Name: t.name, Version: VERSION, Website: 'https://www.innerpulse.net',
     },
@@ -215,7 +209,7 @@ Theme=${t.dark ? 'breeze-dark' : 'breeze'}
 name=${desktopThemeId(t)}
 
 [Wallpaper]
-Image=${t.id === 'carbon' ? 'innerpulse-carbon' : 'innerpulse-exposure'}
+Image=${DEFAULT_WALLPAPER}
 
 [kcminputrc][Mouse]
 cursorTheme=breeze_cursors
@@ -229,16 +223,17 @@ Theme=net.innerpulse.ink
 `);
   if (t.id === 'ink') {
     put(`${base}/contents/splash/Splash.qml`, qml('src/splash/Splash.qml'));
+    put(`${base}/contents/splash/AmbientMark.qml`, qml('src/qml/AmbientMark.qml'));
     copyFileSync(join(BRAND, 'innerpulse-wordmark-on-dark.svg'), put(`${base}/contents/splash/images/wordmark.svg`, ''));
     // the Splash Screen settings page's thumbnail (2× Breeze's 300 × 169)
-    const sp = putBuild('splash-preview.svg', splashPreview(ink, readFileSync(join(BRAND, 'innerpulse-wordmark-on-dark.svg'), 'utf8')));
+    const sp = putBuild('splash-preview.svg', splashPreview(carbon, readFileSync(join(BRAND, 'innerpulse-wordmark-on-dark.svg'), 'utf8')));
     raster(sp, join(DIST, `${base}/contents/previews/splash.png`), 600, 338);
   }
   put(`${base}/contents/logout/Logout.qml`, qml('src/logout/Logout.qml'));
   put(`${base}/contents/logout/AmbientMark.qml`, qml('src/qml/AmbientMark.qml'));
   // the lock screen as this theme sets it (its ground, the mark at rest), at Breeze's 600 × 337
   raster(lockSvgs[t.id], join(DIST, `${base}/contents/previews/lockscreen.png`), 600, 337);
-  const pv = putBuild(`preview-${t.id}.svg`, preview(t, join(DIST, t.id === 'carbon' ? 'wallpapers/innerpulse-carbon/contents/images/2560x1440.png' : `wallpapers/innerpulse-exposure/contents/${t.dark ? 'images_dark' : 'images'}/2560x1440.png`)));
+  const pv = putBuild(`preview-${t.id}.svg`, preview(t, join(ART_DIR, DEFAULT_WALLPAPER, '2560x1440.jpg')));
   raster(pv, join(DIST, `${base}/contents/previews/preview.png`), 640, 360);
   const full = join(BUILD, `full-${t.id}.png`);
   raster(pv, full, 1920, 1080);
@@ -246,22 +241,27 @@ Theme=net.innerpulse.ink
   log('look-and-feel', id);
 }
 
-// 6. the mark as an icon, for the application launcher and anything else that asks for "innerpulse"
-copyFileSync(join(BRAND, 'innerpulse-glyph.svg'), put('icons/hicolor/scalable/apps/innerpulse.svg', ''));
+// 6. the mark as icons. innerpulse-app is the app icon: the plate edge to edge, flat as a scalable SVG and at 16–48
+//    px (whole-pixel), machined from 64 px. innerpulse is the mark in a panel (the launcher, a tray): the small mark,
+//    the six bars alone, since a panel icon is under 32 px and the plate's slots would not read there.
 copyFileSync(join(BRAND, 'innerpulse-icon.svg'), put('icons/hicolor/scalable/apps/innerpulse-app.svg', ''));
-// Pixel-hinted copies for the sizes a panel asks for, so the bars' edges land on whole pixels instead of the
-// scalable glyph's fractional ones. Bar and gap widths are chosen per size; heights are the resting heights scaled
-// by the layout's width (the master's 206-unit span) and rounded to N's parity, so each bar centers on a whole
-// pixel. At 22 and 24 px the bar-to-gap ratio is 1:1, not the master's roughly 1.5:1, because 3 + 1 bars would be
-// 23 px wide. Never animated, no effects. Other sizes fall back to the scalable glyph.
-for (const [N, bar, gap, rx] of [[22, 2, 2, 0.5], [24, 2, 2, 0.5], [32, 3, 2, 0.5], [48, 4, 3, 0.75]]) {
+for (const N of [16, 24, 32, 48, 64, 128, 256, 512]) {
+  copyFileSync(join(BRAND, `png/innerpulse-icon-${N}.png`), put(`icons/hicolor/${N}x${N}/apps/innerpulse-app.png`, ''));
+}
+copyFileSync(join(BRAND, 'innerpulse-mark-small.svg'), put('icons/hicolor/scalable/apps/innerpulse.svg', ''));
+// Pixel-hinted copies of the small mark for the sizes a panel asks for, so the bars' edges land on whole pixels
+// instead of the scalable mark's fractional ones. Bar and gap widths are chosen per size; heights are the resting
+// heights scaled by the layout's width (the master's 206-unit span) and rounded to N's parity, so each bar centers
+// on a whole pixel. At 22 and 24 px the bar-to-gap ratio is 1:1, not the master's roughly 1.5:1, because 3 + 1 bars
+// would be 23 px wide. Never animated, no effects. Other sizes fall back to the scalable mark.
+for (const [N, bar, gap, rx] of [[22, 2, 2, 0.5], [24, 2, 2, 0.5], [32, 3, 2, 0.5]]) {
   const width = 6 * bar + 5 * gap, x0 = Math.floor((N - width) / 2);
   const s = width / (2 * (MARK.span + MARK.stroke / 2));
   const master = barHeights().map((h) => 2 * h + MARK.stroke);
   const hs = master.map((h) => { const v = h * s; return 2 * Math.round((v - (N % 2)) / 2) + (N % 2); });
-  // the mark's ranking must survive the rounding: bar 5 > bar 2 > bar 3 > bar 4 > bars 1 and 6, which are equal
+  // the beat's order must survive the rounding: the strike (bar 1) > the echo (bar 4) > bar 2 > bar 3 > the rests
   const [a, b, c, d, e, f] = hs;
-  if (!(e > b && b > c && c > d && d > a && a === f && a > 0)) throw new Error(`icon ${N}: rounding broke the mark's ranking (${hs})`);
+  if (!(b > e && e >= c && c > d && d > a && a === f && a > 0)) throw new Error(`icon ${N}: rounding broke the beat's order (${hs})`);
   if (x0 < 0 || x0 + width > N || Math.max(...hs) > N) throw new Error(`icon ${N}: the bars do not fit (${hs})`);
   const rects = hs.map((h, i) => `<rect x="${x0 + i * (bar + gap)}" y="${(N - h) / 2}" width="${bar}" height="${h}" rx="${rx}"/>`).join('');
   put(`icons/hicolor/${N}x${N}/apps/innerpulse.svg`,
