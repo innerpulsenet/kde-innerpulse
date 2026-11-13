@@ -1,14 +1,14 @@
 /*
     innerpulse Lock: the lock screen's wallpaper, with the live mark.
 
-    The ground is the lock composition (wallpapers/innerpulse-lock, or innerpulse-lock-carbon): one beat's long
-    exposure set low and to the right, clear of the clock, the avatar, the password field and the footer. Over
-    its resting mark this plugin draws the mark itself, beating at the ambient tempo (AmbientMark.qml), so the
-    one place the viewer simply waits is the one place the mark is alive. Live bars only ever rise above the
-    resting ones, so they always cover the drawing beneath.
+    The ground is the lock composition (wallpapers/innerpulse-lock, or innerpulse-lock-carbon): the variant's
+    ground with the plate at rest, low and to the right, clear of the clock, the avatar, the password field and
+    the footer. Over its resting plate this plugin draws the plate itself, live (AmbientMark.qml): a pulse of light
+    through its slots at the ambient tempo, so the one place the viewer simply waits is the one place the mark is
+    alive. The live plate covers the resting one exactly.
 
     The mark holds still when animations are turned off, or with BeatOnLock off (the lock screen blurs its
-    wallpaper while the password prompt is up, which turns a beating mark into a soft pulsing glow).
+    wallpaper while the password prompt is up, which turns the pulse into a soft glow).
 
     This plugin is for the lock screen only; install.sh never sets it on the desktop. Values tagged with an @KEY@
     comment are filled in by src/build.mjs.
@@ -27,12 +27,12 @@ WallpaperItem {
     readonly property var sizes: [[1920, 1080], [2560, 1440], [3840, 2160]] /*@SIZES@*/
     readonly property string variant: root.marks[root.configuration.Variant] ? root.configuration.Variant : "ink"
 
-    // where the resting mark sits in the 2560 × 1440 composition, and its box in px (wallpaper-art.mjs LOCK_MARK)
+    // where the resting plate sits in the 2560 × 1440 composition, and its size in px (wallpaper.mjs LOCK_MARK)
     readonly property real artW: 2560 /*@ART_W@*/
     readonly property real artH: 1440 /*@ART_H@*/
     readonly property real markX: 0.72 /*@LOCK_X@*/
-    readonly property real markY: 0.82 /*@LOCK_Y@*/
-    readonly property real markBox: 308 /*@LOCK_BOX@*/
+    readonly property real markY: 0.8 /*@LOCK_Y@*/
+    readonly property real markSize: 176 /*@LOCK_SIZE@*/
     // the composition's scale and offset under a centered crop, the fill the ground uses
     readonly property real k: Math.max(width / artW, height / artH)
     readonly property real ox: (width - artW * k) / 2
@@ -65,7 +65,7 @@ WallpaperItem {
     }
 
     AmbientMark {
-        width: root.markBox * root.k
+        width: root.markSize * root.k
         height: width
         x: root.ox + root.markX * root.artW * root.k - width / 2
         y: root.oy + root.markY * root.artH * root.k - height / 2

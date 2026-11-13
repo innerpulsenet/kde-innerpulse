@@ -1,25 +1,24 @@
-// The look-and-feel preview: the field wallpaper with a panel, a window and a popup drawn in the theme's own
+// The look-and-feel preview: the default wallpaper with a panel, a window and a popup drawn in the theme's own
 // colors and geometry, so the picture in System Settings shows what applying it does. It is an illustration
 // built from the palette, not a screenshot.
 import { readFileSync } from 'node:fs';
-import { barRects } from './mark.mjs';
-import { EXPOSURE_MARK } from './wallpaper-art.mjs';
+import { barRects, plateAt } from './mark.mjs';
 import { n } from './svg.mjs';
 
 const VW = 2560, VH = 1440;
 
-export function preview(t, wallpaperPng) {
-  const wp = readFileSync(wallpaperPng).toString('base64');
+export function preview(t, wallpaperJpg) {
+  const wp = readFileSync(wallpaperJpg).toString('base64');
   const line = `rgb(${t.lineRGB.join(',')})`;
   const head = t.dark ? t.ground : t.s2, win = t.dark ? t.s2 : t.ground, view = t.dark ? t.s1 : '#faf8f4';
   const sans = 'font-family="Inter, Instrument Sans, IBM Plex Sans, sans-serif"'; // the interface face install.sh sets
   const mono = 'font-family="JetBrains Mono, IBM Plex Mono, monospace"';
   const out = [];
-  out.push(`<image href="data:image/png;base64,${wp}" width="${VW}" height="${VH}"/>`);
+  out.push(`<image href="data:image/jpeg;base64,${wp}" width="${VW}" height="${VH}"/>`);
 
   // window
-  // the window sits left, clear of the Exposure mark (right of center) and above the panel's popup
-  const W = { x: 150, y: 150, w: 1180, h: 800 };
+  // the window sits right, clear of the default wallpaper's strike (left of center)
+  const W = { x: VW - 150 - 1180, y: 150, w: 1180, h: 800 };
   out.push(`<rect x="${W.x - 2}" y="${W.y + 10}" width="${W.w + 4}" height="${W.h}" rx="6" fill="#000" opacity="${t.dark ? 0.45 : 0.14}" filter="url(#soft)"/>`);
   out.push(`<rect x="${W.x}" y="${W.y}" width="${W.w}" height="${W.h}" rx="4" fill="${win}" stroke="${line}" stroke-opacity="${t.dark ? 0.16 : 0.2}"/>`);
   out.push(`<path d="M${W.x + 4} ${W.y + 0.5}h${W.w - 8}a3.5 3.5 0 0 1 3.5 3.5v32.5h-${W.w - 1}v-32.5a3.5 3.5 0 0 1 3.5-3.5z" fill="${head}"/>`);
@@ -61,7 +60,7 @@ export function preview(t, wallpaperPng) {
   const P = { x: 720, y: VH - 66, w: VW - 1440, h: 52 };
   out.push(`<rect x="${P.x}" y="${P.y}" width="${P.w}" height="${P.h}" rx="4" fill="${head}" fill-opacity="${t.dark ? 0.92 : 0.94}" stroke="${line}" stroke-opacity="${t.dark ? 0.16 : 0.18}"/>`);
   for (let x = P.x + 8; x < P.x + P.w - 8; x += 8) out.push(`<rect x="${x}" y="${P.y + 1}" width="1" height="${(x - P.x) % 32 === 8 ? 4 : 2}" fill="${t.text}" opacity="${t.dark ? 0.12 : 0.16}"/>`);
-  // launcher: the mark
+  // launcher: the small mark (a panel icon is under 32 px, where the plate's slots would not read)
   const S = 30 / 220;
   out.push(`<g transform="translate(${P.x + 34} ${P.y + 26}) scale(${n(S)})" fill="${t.mark}">${barRects().map((r) => `<rect x="${n(r.x)}" y="${n(r.y)}" width="${r.w}" height="${n(r.h)}" rx="${r.rx}"/>`).join('')}</g>`);
   // tasks: one focused (ember bar on the panel side), two running, one minimized
@@ -93,22 +92,23 @@ export function preview(t, wallpaperPng) {
 }
 
 // The splash screen's thumbnail for System Settings: src/splash/Splash.qml laid out at 1920 × 1080 (grid unit
-// 18 px), the mark at rest where the Exposure wallpaper puts it, the wordmark under it, and the working line's
+// 18 px): the plate at rest, centered a little above the middle, the wordmark under it, and the working line's
 // verb. The elapsed readout is left out: a frozen number would be invented.
 export function splashPreview(t, wordmarkSvg) {
   const W = 1920, H = 1080, gu = 18;
-  const k = Math.max(W / VW, H / VH);
-  const box = EXPOSURE_MARK.box * k, s = box / 220;
-  const cx = W / 2 + (EXPOSURE_MARK.mx - 0.5) * VW * k, cy = H / 2 + (EXPOSURE_MARK.my - 0.5) * VH * k;
-  const bars = barRects().map((r) => `<rect x="${n(r.x)}" y="${n(r.y)}" width="${r.w}" height="${n(r.h)}" rx="${r.rx}"/>`).join('');
-  // the wordmark, 790.4 × 120 units, 2.2 grid units tall, 1.5 grid units under the mark's box
+  const size = gu * SPLASH.plate, cx = W / 2, cy = H / 2 - gu * SPLASH.lift;
+  // the wordmark, 790.4 × 120 units, 2.2 grid units tall, a quarter of the plate plus a grid unit under it
   const wh = gu * 2.2, ww = wh * 790.4 / 120;
   const wm = `data:image/svg+xml;base64,${Buffer.from(wordmarkSvg).toString('base64')}`;
-  const size = Math.max(12, gu * 0.72);
+  const text = Math.max(12, gu * 0.72);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
     `<rect width="${W}" height="${H}" fill="${t.ground}"/>` +
-    `<g transform="translate(${n(cx)} ${n(cy)}) scale(${n(s)})" fill="${t.mark}">${bars}</g>` +
-    `<image href="${wm}" x="${n(cx - ww / 2)}" y="${n(cy + box / 2 + gu * 1.5)}" width="${n(ww)}" height="${n(wh)}"/>` +
-    `<text x="${n(cx)}" y="${n(H - gu * 3 - size * 0.3)}" text-anchor="middle" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="${n(size)}" font-weight="500" fill="${t.text}">Starting Plasma…</text>` +
+    plateAt(cx, cy, size, t.mark) +
+    `<image href="${wm}" x="${n(cx - ww / 2)}" y="${n(cy + size / 2 + size / 4 + gu)}" width="${n(ww)}" height="${n(wh)}"/>` +
+    `<text x="${n(cx)}" y="${n(H - gu * 3 - text * 0.3)}" text-anchor="middle" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="${n(text)}" font-weight="500" fill="${t.text}">Starting Plasma…</text>` +
     `</svg>\n`;
 }
+
+// The splash layout in grid units, shared with Splash.qml through the build: the plate's size, and how far its
+// center sits above the middle of the screen.
+export const SPLASH = { plate: 9, lift: 2 };

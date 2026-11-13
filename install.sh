@@ -2,14 +2,14 @@
 # Install the innerpulse KDE theme for the current user (everything goes under ~/.local/share).
 #
 #   ./install.sh                     copy the built theme into place (nothing on screen changes)
-#   ./install.sh --apply [ink|paper|carbon]  install, then switch the desktop to it (default: ink)
+#   ./install.sh --apply [carbon|ink|paper]  install, then switch the desktop to it (default: carbon)
 #   ./install.sh --fonts             also fetch the brand faces (Inter, Instrument Sans, JetBrains Mono, Syne; OFL)
 #                                    from the google/fonts repository into ~/.local/share/fonts/innerpulse
 #   ./install.sh --launcher-icon     set the application launcher's icon to the mark
 #   ./install.sh --style breeze      with --apply: flat Breeze widgets instead of Oxygen's glass (default oxygen)
 #   ./install.sh --frosted-titlebar  with --apply: the active title bar is translucent, blurred behind (default opaque)
-#   ./install.sh --quiet-second-screen  with --apply: on more than one screen, the mark on the primary screen only and
-#                                    the same ground, with nothing on it, everywhere else (default: same everywhere)
+#   ./install.sh --quiet-second-screen  with --apply: on more than one screen, the wallpaper on the primary screen only
+#                                    and its black, with nothing on it, everywhere else (default: same everywhere)
 #   ./install.sh --restore           switch back to what was active before the last --apply
 #   ./install.sh --uninstall         --restore, then remove every installed file
 #
@@ -33,8 +33,6 @@ INSTALLED=(
   "plasma/look-and-feel/net.innerpulse.carbon"
   "color-schemes/InnerpulseCarbon.colors"
   "aurorae/themes/innerpulse-carbon"
-  "wallpapers/innerpulse-carbon"
-  "wallpapers/innerpulse-carbon-quiet"
   "konsole/InnerpulseCarbon.colorscheme"
   "konsole/innerpulse-carbon.profile"
   "aurorae/themes/innerpulse-ink"
@@ -42,11 +40,23 @@ INSTALLED=(
   "aurorae/themes/innerpulse-ink-frosted"
   "aurorae/themes/innerpulse-paper-frosted"
   "aurorae/themes/innerpulse-carbon-frosted"
-  "wallpapers/innerpulse-exposure"
-  "wallpapers/innerpulse-exposure-quiet"
-  "wallpapers/innerpulse-horizon"
-  "wallpapers/innerpulse-field"
-  "wallpapers/innerpulse-ribbon"
+  "wallpapers/innerpulse-afterglow-prism"
+  "wallpapers/innerpulse-afterglow-diverging"
+  "wallpapers/innerpulse-afterglow-stages"
+  "wallpapers/innerpulse-afterglow-monolith"
+  "wallpapers/innerpulse-harmonic-spectrum"
+  "wallpapers/innerpulse-harmonic-caustics"
+  "wallpapers/innerpulse-harmonic-rf-envelope"
+  "wallpapers/innerpulse-harmonic-overtones"
+  "wallpapers/innerpulse-chromatic-ribbon"
+  "wallpapers/innerpulse-helix-bifrost"
+  "wallpapers/innerpulse-celestial-astrolabe"
+  "wallpapers/innerpulse-torsion-prism"
+  "wallpapers/innerpulse-chronograph-wake"
+  "wallpapers/innerpulse-spectral-waterfall"
+  "wallpapers/innerpulse-retake-horizon"
+  "wallpapers/innerpulse-instrument-scope"
+  "wallpapers/innerpulse-quiet"
   "wallpapers/innerpulse-lock"
   "wallpapers/innerpulse-lock-carbon"
   "plasma/wallpapers/net.innerpulse.lock"
@@ -59,6 +69,25 @@ INSTALLED=(
   "icons/hicolor/22x22/apps/innerpulse.svg"
   "icons/hicolor/24x24/apps/innerpulse.svg"
   "icons/hicolor/32x32/apps/innerpulse.svg"
+  "icons/hicolor/16x16/apps/innerpulse-app.png"
+  "icons/hicolor/24x24/apps/innerpulse-app.png"
+  "icons/hicolor/32x32/apps/innerpulse-app.png"
+  "icons/hicolor/48x48/apps/innerpulse-app.png"
+  "icons/hicolor/64x64/apps/innerpulse-app.png"
+  "icons/hicolor/128x128/apps/innerpulse-app.png"
+  "icons/hicolor/256x256/apps/innerpulse-app.png"
+  "icons/hicolor/512x512/apps/innerpulse-app.png"
+)
+
+# Files earlier versions installed that this one no longer ships: removed on install and on uninstall.
+RETIRED=(
+  "wallpapers/innerpulse-exposure"
+  "wallpapers/innerpulse-exposure-quiet"
+  "wallpapers/innerpulse-horizon"
+  "wallpapers/innerpulse-field"
+  "wallpapers/innerpulse-ribbon"
+  "wallpapers/innerpulse-carbon"
+  "wallpapers/innerpulse-carbon-quiet"
   "icons/hicolor/48x48/apps/innerpulse.svg"
 )
 
@@ -124,6 +153,7 @@ do_install() {
     rm -rf "$dst"
     cp -r "$src" "$dst"
   done
+  for rel in "${RETIRED[@]}"; do rm -rf "${DATA:?}/$rel"; done
   # Konsole profiles name JetBrains Mono; fall back to Hack (KDE's default mono) when it is not installed.
   if ! has_font '^JetBrains Mono'; then
     sed -i 's/^Font=JetBrains Mono,/Font=Hack,/' "$DATA"/konsole/innerpulse-{ink,paper,carbon}.profile
@@ -351,19 +381,16 @@ do_apply() {
   cfg klaunchrc BusyCursorSettings Blinking false
   reconfigure_kwin
 
-  # Wallpaper on every screen. The Exposure package carries both grounds (Plasma shows the ink one under a dark
-  # scheme); Carbon has its own.
-  local wp=innerpulse-exposure ground=images
-  [[ $variant == ink ]] && ground=images_dark
-  [[ $variant == carbon ]] && wp=innerpulse-carbon
+  # Wallpaper on every screen: the OLED set's first, Afterglow Prism, one ground for every variant.
+  local wp=innerpulse-afterglow-prism
   plasma-apply-wallpaperimage "$DATA/wallpapers/$wp" >/dev/null 2>&1 || true
-  # Then, with --quiet-second-screen: on more than one screen, keep the mark on the primary screen (screen 0) and
-  # give every other screen the quiet ground, so the desk shows one ember mark, not one per screen. Containments of
+  # Then, with --quiet-second-screen: on more than one screen, keep the wallpaper on the primary screen (screen 0)
+  # and give every other screen the quiet ground, its black with nothing on it, so the desk has one focal point. Containments of
   # other activities that sit on no screen are skipped. Without the flag, the call above has already put the same
   # wallpaper on every screen (and undone an earlier quiet apply).
   if (( QUIET )); then
     if have qdbus6; then
-      local main="file://$DATA/wallpapers/$wp" quiet="file://$DATA/wallpapers/$wp-quiet"
+      local main="file://$DATA/wallpapers/$wp" quiet="file://$DATA/wallpapers/innerpulse-quiet"
       qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
         const main = \"$main\", quiet = \"$quiet\";
         if (screenCount > 1) desktops().forEach(d => {
@@ -376,10 +403,12 @@ do_apply() {
       say "no qdbus6: every screen keeps the same wallpaper"
     fi
   fi
-  # The lock screen: its own composition (clear of the clock, the prompt and the footer) through the
-  # net.innerpulse.lock plugin, which beats the mark over it. The stock image plugin gets the same ground, so
-  # switching the plugin back in System Settings still shows it.
-  local lockwp=innerpulse-lock
+  # The lock screen: its own composition (the variant's ground, the plate clear of the clock, the prompt and the
+  # footer) through the net.innerpulse.lock plugin, which draws the live plate over it. The stock image plugin gets
+  # the same ground, so switching the plugin back in System Settings still shows it. Ink's ground is the dark
+  # rendition of innerpulse-lock; Carbon has its own package.
+  local lockwp=innerpulse-lock ground=images
+  [[ $variant == ink ]] && ground=images_dark
   [[ $variant == carbon ]] && lockwp=innerpulse-lock-carbon
   local lockdir="$DATA/wallpapers/$lockwp"
   cfg kscreenlockerrc Greeter/Wallpaper/org.kde.image/General Image "file://$lockdir"
@@ -480,7 +509,7 @@ do_uninstall() {
   # nothing may keep pointing at the files about to be removed, whatever state was saved
   forget_ours
   reset_wallpaper_if_ours "$lnf"
-  for rel in "${INSTALLED[@]}"; do rm -rf "${DATA:?}/$rel"; done
+  for rel in "${INSTALLED[@]}" "${RETIRED[@]}"; do rm -rf "${DATA:?}/$rel"; done
   rm -rf "$STATE"
   say "removed (fonts in $FONTDIR, if fetched, are left in place)"
 }
@@ -488,7 +517,7 @@ do_uninstall() {
 apply="" fonts=0 icon=0 action=install STYLE=Oxygen DECO="" style_given="" QUIET=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --apply) apply=ink; case "${2:-}" in ink|paper|carbon) apply="$2"; shift ;; esac ;;
+    --apply) apply=carbon; case "${2:-}" in ink|paper|carbon) apply="$2"; shift ;; esac ;;
     --fonts) fonts=1 ;;
     --style) case "${2:-}" in oxygen) STYLE=Oxygen ;; breeze) STYLE=Breeze ;; *) die "--style takes oxygen or breeze" ;; esac; style_given=1; shift ;;
     --frosted-titlebar) DECO=-frosted ;;

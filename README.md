@@ -1,25 +1,25 @@
 # innerpulse for KDE Plasma 6
 
 A complete Plasma 6 desktop theme built on the [innerpulse](https://www.innerpulse.net) identity: an instrument
-look with warm ink grounds, machined corners, hairlines, glass that's lit from above, and one ember signal. It ships
-in three variants: **Ink** (the default), **Paper** and **Carbon**. Every color, frame and wallpaper is generated
-from code, so nothing is redrawn by hand.
+look with carbon grounds, brushed-steel text, machined corners, hairlines, glass that's lit from above, and one ember
+signal. It ships in three variants: **Carbon** (the default, and the brand's own ground), **Ink**, the earlier warm
+ground, and **Paper**. Every color and frame is generated from code; the wallpapers are the innerpulse OLED set.
 
-![innerpulse Ink](docs/preview-ink.jpg)
+![innerpulse Carbon](docs/preview-carbon.jpg)
 
-| Paper | Carbon |
+| Ink | Paper |
 |---|---|
-| ![innerpulse Paper](docs/preview-paper.jpg) | ![innerpulse Carbon](docs/preview-carbon.jpg) |
+| ![innerpulse Ink](docs/preview-ink.jpg) | ![innerpulse Paper](docs/preview-paper.jpg) |
 
-These previews are illustrations drawn from the theme's own palette and geometry. The captures below are real.
+These previews are illustrations drawn from the theme's own palette and geometry over the default wallpaper.
 
-| Apps in Carbon (Oxygen widget style) | Splash screen |
+| Apps in Carbon (Oxygen widget style, captured) | Selected text in Chrome, Carbon (captured) |
 |---|---|
-| ![widgets in Carbon](docs/widgets-carbon.png) | ![splash](docs/splash.jpg) |
+| ![widgets in Carbon](docs/widgets-carbon.png) | ![Chrome selection](docs/chrome-selection-carbon.png) |
 
-| Lock screen (the mark beats live, every 4.5 s) | Selected text in Chrome, Carbon |
+| Splash screen (rendered from its QML) | Lock screen ground (the plate over it is live) |
 |---|---|
-| ![lock screen](docs/lockscreen.jpg) | ![Chrome selection](docs/chrome-selection-carbon.png) |
+| ![splash](docs/splash.jpg) | ![lock screen](docs/lockscreen.jpg) |
 
 ## What's in it
 
@@ -29,25 +29,25 @@ These previews are illustrations drawn from the theme's own palette and geometry
 | Plasma themes `innerpulse`, `innerpulse-paper`, `innerpulse-carbon` | One per variant: colors follow the active scheme, while the glass and shadows are tuned to each ground. Panels have machined 4 px corners, a hairline and a faint graduated scale along the long edge. Popups carry one ember index tick at the top left, with a faint band under their headers. In menus, launchers and combo box lists the row index turns ember. The focused task gets an ember bar on the panel side; tasks that want attention get amber. The pager raises the current desktop in glass. Check boxes, radio buttons, switches, sliders, progress bars and scroll bars are drawn in steel rather than the selection color (Plasma still colors a stepped slider's tick marks itself); the busy indicator is a turning steel arc, never the mark |
 | Glass | Surfaces are lit from above: a sheen through the top edge, a 1 px highlight lip and a faint shade at the foot. Panels and popups are frosted (about three quarters ground, blurred behind). Apps use Oxygen's widget style, recolored by the scheme, for raised glass buttons, tabs and progress bars. `--style breeze` gives flat widgets instead |
 | Window decorations (Aurorae) | Glass title bar, hairline ring and a soft shadow lit from above, with the ember index tick on the active window only. Buttons lift onto a glass tile on hover; close lifts onto the action red. Toggles that are on (all desktops, keep above or below, shade) sit sunken with a bar under the glyph. Each variant also comes as `innerpulse … (frosted title bar)`, whose active title bar is translucent and blurred behind |
-| Wallpapers | **Exposure** (default), **Horizon**, **Field**, **Ribbon**, and **Carbon**. All but Carbon come in ink and paper renditions, and Plasma picks the one that matches the scheme. Each caption states what's actually drawn, true at every render size. Exposure and Carbon also have a quiet ground (nothing on it) for a second screen, used with `--quiet-second-screen` |
-| Splash screen | The mark draws itself in, then beats at a 2.4 s working tempo while Plasma starts, over a working line that shows the real elapsed time. It holds still when animations are off |
-| Splash screen | The mark fades in at rest where the Exposure wallpaper's mark stands (centered on a portrait screen), then beats at a 2.4 s working tempo while Plasma starts, over a working line that shows the real elapsed time. When start-up is done the words fade and the mark settles to rest where the wallpaper's mark will appear, so the handoff to the desktop keeps it in place. It holds still when animations are off, and the timer then counts whole seconds |
-| Lock screen | Its own composition, set low and to the right so the clock, avatar, password field and footer sit on clear ground, shown by a small wallpaper plugin (`net.innerpulse.lock`) that beats the live mark over the drawn one every 4.5 s. The mark holds still when animations are off |
-| Logout prompt | Plasma's own prompt, loaded as it is, on the ink ground instead of black, with the countdown in JetBrains Mono and the mark above the avatar at the 4.5 s ambient beat |
+| Wallpapers | The OLED set: sixteen images in four sets (Afterglow Prism, Phosphor Harmonics, Chromatic Helix, Pulse Chronograph) on a true black ground, each in 2560 × 1440, 3440 × 1440, 3840 × 2160 and 5120 × 2160, so 16:9 and 21:9 screens both get a native rendition. **Afterglow Prism** is the default for every variant. A quiet ground, the same black with nothing on it, is there for a second screen (`--quiet-second-screen`) |
+| The mark | The plate: the beat cut out of a solid ember tile, as the brand now draws it. Where the viewer rests or waits (the splash, the lock screen, the logout prompt) it is live: its slots open once, then a pulse of light passes through them. The plate itself never moves. In a panel, where it would be under 32 px, the mark is the six bars alone |
+| Splash screen | The plate on carbon, centered, with the wordmark under it. Its slots open, then a pulse of light passes through them every 2.4 s while Plasma starts, over a working line that shows the real elapsed time. When start-up is done the pulse in flight finishes and the screen fades. It holds still when animations are off, and the timer then counts whole seconds |
+| Lock screen | The variant's ground with the plate low and to the right, so the clock, avatar, password field and footer sit on clear ground, shown by a small wallpaper plugin (`net.innerpulse.lock`) that draws the live plate over the resting one, a pulse of light every 4.5 s. It holds still when animations are off |
+| Logout prompt | Plasma's own prompt, loaded as it is, on the carbon ground instead of black, with the countdown in JetBrains Mono and the live plate above the avatar at the 4.5 s ambient tempo |
 | Motion | Windows open and close on a shorter, shallower scale (160 ms from 94 %, instead of 200 ms from 80 %). Launch feedback is static: the starting app's icon sits still by the pointer instead of bouncing. Oxygen's widget animations follow Plasma's animation speed (see below) |
-| Global themes | `innerpulse Ink`, `innerpulse Paper` and `innerpulse Carbon` in System Settings → Colors & Themes → Global Theme. None of them touches your panel layout |
+| Global themes | `innerpulse Carbon`, `innerpulse Ink` and `innerpulse Paper` in System Settings → Colors & Themes → Global Theme. None of them touches your panel layout |
 | Konsole | Matching color schemes and profiles, with an ember block cursor |
 | Fonts (optional) | Inter for the interface, JetBrains Mono for fixed-width. The installer fetches them, plus Instrument Sans and Syne, from google/fonts with `--fonts` |
 
 ### Wallpapers
 
-| Exposure | Horizon |
-|---|---|
-| ![Exposure](docs/wallpaper-exposure.jpg) | ![Horizon](docs/wallpaper-horizon.jpg) |
-| One beat of the mark photographed 96 times over 1.6 s, 0.017 s apart, resolving into the mark at rest | One beat in depth: 80 readings 0.05625 s apart, receding to a horizon, with the rise drawn 3× (as its caption says). The front row is the latest reading |
-| **Field** | **Carbon** |
-| ![Field](docs/wallpaper-field.jpg) | ![Carbon](docs/wallpaper-carbon.jpg) |
-| A frozen waterfall of the mark's bars on a 240 × 128 grid, with the mark cleaned out of the noise | Exposure over a fine carbon-fiber weave |
+![The sixteen wallpapers](docs/wallpapers.jpg)
+
+One row per set, left to right: **Afterglow Prism** (Prism, Diverging, Stages, Monolith), **Phosphor Harmonics**
+(Spectrum, Caustics, RF Envelope, Overtones), **Chromatic Helix** (Chromatic Ribbon, Helix Bifrost, Celestial
+Astrolabe, Torsion Prism) and **Pulse Chronograph** (Chronograph Wake, Spectral Waterfall, Retake Horizon, Instrument
+Scope). Pick one in System Settings → Wallpaper; each appears as `innerpulse <name>`. They are drawn for dark rooms
+and OLED panels, so Paper keeps the same black wallpapers.
 
 ## Install
 
@@ -64,7 +64,7 @@ tar -xzf kde-innerpulse-1.0.0.tar.gz && cd kde-innerpulse-1.0.0
 ```
 
 ```bash
-./install.sh --fonts --apply ink
+./install.sh --fonts --apply
 ```
 
 ### From source
@@ -84,7 +84,7 @@ node src/build.mjs
 ```
 
 ```bash
-./install.sh --fonts --apply ink
+./install.sh --fonts --apply
 ```
 
 Everything installs under `~/.local/share` for the current user, so there's no sudo and nothing system-wide.
@@ -92,12 +92,12 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 | Option | What it does |
 |---|---|
 | (none) | Copy the theme into place. Nothing on screen changes |
-| `--apply ink`, `paper` or `carbon` | Switch the desktop to that variant. Your previous global theme, colors, accent color, decoration, splash, widget style, Konsole profile, fonts, lock screen, window open and close animation, launch feedback and Oxygen animation settings are saved first. A custom or wallpaper accent is switched off, since it would retint the selection |
+| `--apply`, or `--apply carbon`, `ink` or `paper` | Switch the desktop to that variant (Carbon when none is named). Your previous global theme, colors, accent color, decoration, splash, widget style, Konsole profile, fonts, lock screen, window open and close animation, launch feedback and Oxygen animation settings are saved first. A custom or wallpaper accent is switched off, since it would retint the selection |
 | `--style breeze` | With `--apply`: flat Breeze widgets instead of Oxygen's glass |
 | `--frosted-titlebar` | With `--apply`: the frosted window decoration, whose active title bar is translucent and blurred behind. The default is opaque |
-| `--quiet-second-screen` | With `--apply`: on more than one screen, the mark stays on the primary screen and every other screen gets the same ground with nothing on it. By default every screen shows the same wallpaper |
+| `--quiet-second-screen` | With `--apply`: on more than one screen, the wallpaper stays on the primary screen and every other screen gets its black with nothing on it. By default every screen shows the same wallpaper |
 | `--fonts` | Fetch Inter, Instrument Sans, JetBrains Mono and Syne (SIL OFL) into `~/.local/share/fonts/innerpulse`. With them installed, `--apply` sets the interface and fixed-width fonts |
-| `--launcher-icon` | Put the mark on the application launcher. It ships pixel-snapped at 22, 24, 32 and 48 px, so it stays sharp at panel size |
+| `--launcher-icon` | Put the mark on the application launcher: the six bars alone, as the brand draws the mark under 32 px, pixel-snapped at 22, 24 and 32 px so it stays sharp at panel size. The app icon, `innerpulse-app`, is the plate |
 | `--restore` | Put back what was active before the first `--apply`, the lock screen included. The desktop wallpaper is left as it is |
 | `--uninstall` | Restore, then remove every installed file. Each screen still showing an innerpulse wallpaper is switched to the previous global theme's wallpaper (or Plasma's Next); screens showing your own wallpaper keep it. Fetched fonts are left in place |
 
@@ -106,10 +106,10 @@ Everything installs under `~/.local/share` for the current user, so there's no s
 - **Animation speed and Oxygen.** Oxygen doesn't read Plasma's Animation speed setting, so `--apply` copies it
   into Oxygen's own settings: at Instant, Oxygen's animations are off. It's read once, so after you change the
   speed, run `--apply` again and restart open apps. KWin's effects follow the setting on their own. The splash,
-  lock screen and logout prompt hold the mark still when the speed is Instant; at any other speed they keep the
-  brand's 4.5 s and 2.4 s beats.
+  lock screen and logout prompt hold the plate still, slots open and dark, when the speed is Instant; at any other
+  speed they keep the brand's 4.5 s and 2.4 s pulses.
 - **A still mark on the lock screen.** While the password prompt is up, the lock screen blurs its wallpaper, which
-  turns the beating mark into a soft pulsing glow. To keep it still, turn off "Beat every 4.5 s while locked" in
+  turns the pulse of light into a soft glow. To keep it still, turn off "A pulse of light every 4.5 s while locked" in
   System Settings → Screen Locking → Appearance, or run
   `kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group net.innerpulse.lock --group General --key BeatOnLock false`.
 
@@ -140,21 +140,22 @@ These come from KWin's Aurorae engine, which draws the window decorations:
 ## How it's built
 
 ```
-brand/            the wordmark, ribbon and icon artwork
+brand/            the wordmark, the small mark and the app icon (the plate), from the brand kit
+wallpapers/       the OLED set, one folder per wallpaper, a JPEG per size
 src/build.mjs     builds dist/, laid out like ~/.local/share
 src/lib/
-  mark.mjs        the mark's geometry and its one motion, the beat
+  mark.mjs        the mark's geometry: the beat, the plate and its pulse of light
   palette.mjs     every color in all three variants, chosen for contrast
   colors.mjs      KDE and Konsole color schemes
   svg.mjs         nine-slice frames drawn as plain paths (Qt SVG renders SVG Tiny, so no clip paths or filters)
   plasma.mjs      the Plasma themes: panel, popups, tooltips, widgets, tasks, list highlights, controls, glass
   aurorae.mjs     the window decorations and their buttons
-  wallpaper.mjs, wallpaper-art.mjs   Field, Ribbon, Exposure, Horizon, Carbon, the quiet grounds and the lock screen's ground
+  wallpaper.mjs   the wallpaper list, the quiet ground and the lock screen's ground
   preview.mjs     the global-theme and splash previews
 src/splash/       Splash.qml
 src/lock/         the lock screen's wallpaper plugin
 src/logout/       the logout prompt (a wrapper that loads Plasma's own)
-src/qml/          AmbientMark.qml, the mark at the 4.5 s beat, shared by the lock screen and the logout prompt
+src/qml/          AmbientMark.qml, the live plate, shared by the splash, the lock screen and the logout prompt
 install.sh        install, apply, restore, uninstall
 ```
 
@@ -163,6 +164,6 @@ colors from the same modules at build time (values tagged `/*@KEY@*/`). `dist/` 
 
 ## License
 
-The code and theme files are MIT licensed (see [LICENSE](LICENSE)). The innerpulse name, mark, wordmark and
-artwork are not covered by it. They ship with this theme and may be used as part of it, but not to brand anything
+The code and theme files are MIT licensed (see [LICENSE](LICENSE)). The innerpulse name, mark, wordmark,
+wallpapers and other artwork are not covered by it. They ship with this theme and may be used as part of it, but not to brand anything
 else. See [BRAND.md](BRAND.md), which also explains how to fork the theme with your own identity.

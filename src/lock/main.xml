@@ -15,7 +15,7 @@
       <default>ink</default>
     </entry>
     <entry name="BeatOnLock" type="Bool">
-      <label>Let the mark beat while the screen is locked</label>
+      <label>Let a pulse of light pass through the mark while the screen is locked</label>
       <default>true</default>
     </entry>
   </group>

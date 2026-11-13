@@ -17,12 +17,12 @@ Kirigami.FormLayout {
     QQC2.CheckBox {
         id: beat
         Kirigami.FormData.label: "Mark:"
-        text: "Beat every 4.5 s while locked"
+        text: "A pulse of light every 4.5 s while locked"
     }
     QQC2.Label {
         Layout.maximumWidth: Kirigami.Units.gridUnit * 24
         wrapMode: Text.WordWrap
         opacity: 0.7
-        text: "The mark holds still when animations are turned off. Under the password prompt the lock screen blurs it into a soft glow; turn the beat off to keep that glow still."
+        text: "The mark holds still when animations are turned off. Under the password prompt the lock screen blurs it into a soft glow; turn the pulse off to keep that glow still."
     }
 }
