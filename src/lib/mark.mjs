@@ -51,6 +51,66 @@ export const PULSE = {
   drawLag: 0.09, // … starting this long after the slot to its left
 };
 
+// The bars in motion, for the places the small mark moves: the busy pointers (cursors.mjs) and the throbber icon
+// (icons.mjs). These are the brand kit's own numbers (THINK and beatHeights in scripts/pulse.mjs); the plate above
+// only ever takes light.
+//
+// Retake ("thinking"): the bars fall to rests one after another, then the reading is taken again: each bar is lit
+// as it rises to its height and cools once it lands. Pass ("writing"): the bars stand as the mark and light passes
+// through them. Beat: every bar lifts by PULSE.rise as the pulse passes, with no light at all, so it reads in one
+// flat color. Everywhere the light rings down with the beat: the strike is lit brightest.
+export const THINK = {
+  period: 2.4, // seconds a retake cycle takes
+  busy: 1.2, // seconds a pass of light takes
+  riseAt: 0.06, riseLag: 0.05, rise: 0.2, // bar i starts to rise at riseAt + i·riseLag and takes `rise`
+  fallAt: 0.72, fallLag: 0.028, fall: 0.12, // and starts to fall at fallAt + i·fallLag, taking `fall`
+  glow: 0.34, glowCurve: 0.6, glowPower: 1.5, // a bar is lit from the start of its rise for `glow`, hottest mid-rise
+  floor: 0.35, // a bar's light is floor … 1 by its height
+  passLag: 0.05, passWidth: 0.26, // pass: the light reaches bar i at i·passLag and stays passWidth
+};
+
+/** How strongly each bar is lit: THINK.floor for a bar of no height, 1 for the strike. */
+export function lightWeights() {
+  const rest = barHeights(), top = Math.max(...rest);
+  return rest.map((h) => THINK.floor + (1 - THINK.floor) * (h / top));
+}
+
+/** Retake at phase u (0 … 1 of a cycle): [{ h, l }] per bar, h the half-height and l the light 0 … 1. */
+export function retakeBars(u) {
+  const rest = barHeights(), w = lightWeights(), T = THINK;
+  return rest.map((h, i) => {
+    const a = Math.min(1, Math.max(0, (u - T.riseAt - i * T.riseLag) / T.rise)), up = 1 - (1 - a) ** 3;
+    const f = Math.min(1, Math.max(0, (u - T.fallAt - i * T.fallLag) / T.fall)), down = f * f;
+    const g = (u - T.riseAt - i * T.riseLag) / T.glow;
+    const l = g > 0 && g < 1 ? Math.sin(Math.PI * g ** T.glowCurve) ** T.glowPower : 0;
+    return { h: MARK.minBar + (h - MARK.minBar) * up * (1 - down), l: w[i] * l * (1 - down) };
+  });
+}
+
+/** Pass at phase u (0 … 1 of a pass): the bars at rest, [{ h, l }] with the light passing left to right. */
+export function passBars(u) {
+  const rest = barHeights(), w = lightWeights(), T = THINK;
+  return rest.map((h, i) => {
+    const x = (u - i * T.passLag) / T.passWidth;
+    return { h, l: x > 0 && x < 1 ? w[i] * Math.sin(Math.PI * x) ** 2 : 0 };
+  });
+}
+
+/** Beat at phase u (0 … 1 of a period): [{ h, l: 0 }], each bar lifted by PULSE.rise as the pulse passes. */
+export function beatBars(u) {
+  return barHeights().map((h, i) => {
+    const x = (u - i * PULSE.lag) / PULSE.width;
+    return { h: x > 0 && x < 1 ? h + PULSE.rise * Math.sin(Math.PI * x) ** 2 : h, l: 0 };
+  });
+}
+
+/** A bar's color at light l: ember toward the lamp. */
+export function litColor(l, from = '#f43a2a', to = LAMP) {
+  const c = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [a, b] = [c(from), c(to)];
+  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * l).toString(16).padStart(2, '0')).join('');
+}
+
 /** The optical minimum with a soft landing: a cubic Hermite join from minBar up to ease. */
 export function restFloor(v, { min = MARK.minBar, ease = MARK.ease } = {}) {
   if (v <= min) return min;

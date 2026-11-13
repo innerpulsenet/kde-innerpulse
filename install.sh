@@ -6,7 +6,10 @@
 #   ./install.sh --fonts             also fetch the brand faces (Inter, Instrument Sans, JetBrains Mono, Syne; OFL)
 #                                    from the google/fonts repository into ~/.local/share/fonts/innerpulse
 #   ./install.sh --launcher-icon     set the application launcher's icon to the mark
-#   ./install.sh --style breeze      with --apply: flat Breeze widgets instead of Oxygen's glass (default oxygen)
+#   ./install.sh --style glass|oxygen|breeze   with --apply: the widget style. glass is the theme's own smoked
+#                                    glass, drawn by Kvantum (needs qt6-style-kvantum) and the default when Kvantum
+#                                    is installed; oxygen is Oxygen's glass recolored, the default without it;
+#                                    breeze is flat
 #   ./install.sh --frosted-titlebar  with --apply: the active title bar is translucent, blurred behind (default opaque)
 #   ./install.sh --quiet-second-screen  with --apply: on more than one screen, the wallpaper on the primary screen only
 #                                    and its black, with nothing on it, everywhere else (default: same everywhere)
@@ -21,6 +24,9 @@ DIST="$HERE/dist"
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 STATE="$DATA/innerpulse-kde"
 FONTDIR="$DATA/fonts/innerpulse"
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
+# The application style's themes, which Kvantum reads from ~/.config/Kvantum rather than ~/.local/share
+KVANTUM=(InnerpulseCarbon InnerpulseInk InnerpulsePaper)
 
 INSTALLED=(
   "color-schemes/InnerpulseInk.colors"
@@ -77,6 +83,10 @@ INSTALLED=(
   "icons/hicolor/128x128/apps/innerpulse-app.png"
   "icons/hicolor/256x256/apps/innerpulse-app.png"
   "icons/hicolor/512x512/apps/innerpulse-app.png"
+  "icons/innerpulse"
+  "icons/innerpulse-light"
+  "icons/innerpulse-cursors"
+  "icons/innerpulse-cursors-still"
 )
 
 # Files earlier versions installed that this one no longer ships: removed on install and on uninstall.
@@ -122,6 +132,10 @@ TRACKED=(
   "oxymenubarms|oxygenrc|Style|MenuBarAnimationsDuration|"
   "oxytoolbar|oxygenrc|Style|ToolBarAnimationType|"
   "oxytoolbarms|oxygenrc|Style|ToolBarAnimationsDuration|"
+  # the smoked-glass style's theme, and the pointers and icons the global theme sets
+  "kvtheme|Kvantum/kvantum.kvconfig|General|theme|Innerpulse*"
+  "cursortheme|kcminputrc|Mouse|cursorTheme|innerpulse-cursors*"
+  "icontheme|kdeglobals|Icons|Theme|innerpulse*"
 )
 
 say() { printf '\033[38;2;244;58;42m▍\033[0m %s\n' "$*"; }
@@ -144,6 +158,29 @@ cfg() {
   else kreadconfig6 --file "$file" "${g[@]}" --key "$key"; fi
 }
 
+# Is the Kvantum widget style installed? (Its Qt 6 plugin; the package is qt6-style-kvantum on Debian and Ubuntu.)
+has_kvantum() {
+  local d
+  for d in /usr/lib/*/qt6/plugins/styles /usr/lib/qt6/plugins/styles /usr/lib64/qt6/plugins/styles; do
+    [[ -e "$d/libkvantum.so" ]] && return 0
+  done
+  return 1
+}
+# Plasma's animation speed as a factor: 1 is the default, 0 is "instant" (animations off).
+animation_factor() { kreadconfig6 --file kdeglobals --group KDE --key AnimationDurationFactor --default 1; }
+animations_off() { awk -v f="$(animation_factor)" 'BEGIN { exit !(f + 0 <= 0) }'; }
+
+# Kvantum crossfades a control's states (the hover and focus glows) whatever the animation speed, so turn that
+# off in the installed themes when animations are off. Like the decoration's fades below, a snapshot taken at
+# install: do_install starts from the generated value each time.
+tune_kvantum_animation() {
+  local rc
+  have kreadconfig6 && animations_off || return 0
+  for rc in "$CONF"/Kvantum/Innerpulse*/Innerpulse*.kvconfig; do
+    [[ -f "$rc" ]] && sed -i 's/^animate_states=.*/animate_states=false/' "$rc"
+  done
+}
+
 do_install() {
   [[ -d "$DIST" ]] || die "dist/ is missing: run  node src/build.mjs  first"
   for rel in "${INSTALLED[@]}"; do
@@ -154,6 +191,13 @@ do_install() {
     cp -r "$src" "$dst"
   done
   for rel in "${RETIRED[@]}"; do rm -rf "${DATA:?}/$rel"; done
+  for id in "${KVANTUM[@]}"; do
+    [[ -d "$DIST/Kvantum/$id" ]] || die "missing from dist/: Kvantum/$id"
+    mkdir -p "$CONF/Kvantum"
+    rm -rf "${CONF:?}/Kvantum/$id"
+    cp -r "$DIST/Kvantum/$id" "$CONF/Kvantum/$id"
+  done
+  tune_kvantum_animation
   # Konsole profiles name JetBrains Mono; fall back to Hack (KDE's default mono) when it is not installed.
   if ! has_font '^JetBrains Mono'; then
     sed -i 's/^Font=JetBrains Mono,/Font=Hack,/' "$DATA"/konsole/innerpulse-{ink,paper,carbon}.profile
@@ -333,6 +377,12 @@ do_apply() {
   # The global theme sets colors, Plasma theme, window decoration, splash, cursor and icons. It does not
   # touch panels or widgets (no --resetLayout).
   lookandfeeltool -a "net.innerpulse.$variant" >/dev/null
+  # The pointers: the bars move on the two busy shapes, and a cursor theme cannot read the animation speed, so
+  # with animations off take the theme that holds them still. Read here, once, like Oxygen's settings below.
+  local cursors=innerpulse-cursors
+  animations_off && cursors=innerpulse-cursors-still
+  if have plasma-apply-cursortheme; then plasma-apply-cursortheme "$cursors" >/dev/null 2>&1 || true
+  else cfg kcminputrc Mouse cursorTheme "$cursors"; fi
   # Set the parts explicitly too, so a partial apply (or a cached setting) cannot leave a mix behind.
   plasma-apply-colorscheme "$scheme" >/dev/null || true
   # One desktop theme per variant (the glass differs); Ink's keeps the plain name.
@@ -342,8 +392,19 @@ do_apply() {
   kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "__aurorae__svg__innerpulse-$variant$DECO"
   kwriteconfig6 --file ksplashrc --group KSplash --key Theme net.innerpulse.ink
   kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
-  # Widgets: Oxygen's glass (top-lit window gradient, raised glass buttons) recolored by the scheme, or Breeze.
+  # Widgets: the theme's own smoked glass, drawn by Kvantum from the themes installed above; without Kvantum,
+  # Oxygen's glass (top-lit window gradient, raised glass buttons) recolored by the scheme; or flat Breeze.
+  if [[ -z "$STYLE" ]]; then
+    if has_kvantum; then STYLE=kvantum
+    else
+      STYLE=Oxygen
+      say "Kvantum is not installed, so widgets use Oxygen (for the theme's own style: sudo apt install qt6-style-kvantum, then --apply again)"
+    fi
+  elif [[ $STYLE == kvantum ]] && ! has_kvantum; then
+    die "--style glass needs the Kvantum widget style: sudo apt install qt6-style-kvantum"
+  fi
   kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle "$STYLE"
+  if [[ $STYLE == kvantum ]]; then cfg Kvantum/kvantum.kvconfig General theme "Innerpulse${variant^}"; fi
   # Oxygen lightens a window's ground toward its top. On warm Ink that turns the ink olive-brown, so Ink turns it
   # off; Paper and Carbon keep it.
   local gradient=true; [[ $variant == ink ]] && gradient=false
@@ -352,8 +413,8 @@ do_apply() {
   # settings: off at Instant, otherwise its durations scaled by the same factor, with fades rather than slides.
   # It is read here, once: after changing the speed, run --apply again (and restart open apps).
   if [[ $STYLE == Oxygen ]]; then
-    local factor; factor="$(kreadconfig6 --file kdeglobals --group KDE --key AnimationDurationFactor --default 1)"
-    if awk -v f="$factor" 'BEGIN { exit !(f + 0 <= 0) }'; then
+    local factor; factor="$(animation_factor)"
+    if animations_off; then
       cfg oxygenrc Style AnimationsEnabled false
       cfg oxygenrc Style ProgressBarAnimated false
     else
@@ -510,16 +571,18 @@ do_uninstall() {
   forget_ours
   reset_wallpaper_if_ours "$lnf"
   for rel in "${INSTALLED[@]}" "${RETIRED[@]}"; do rm -rf "${DATA:?}/$rel"; done
+  for id in "${KVANTUM[@]}"; do rm -rf "${CONF:?}/Kvantum/$id"; done
+  rmdir "$CONF/Kvantum" 2>/dev/null || true
   rm -rf "$STATE"
   say "removed (fonts in $FONTDIR, if fetched, are left in place)"
 }
 
-apply="" fonts=0 icon=0 action=install STYLE=Oxygen DECO="" style_given="" QUIET=0
+apply="" fonts=0 icon=0 action=install STYLE="" DECO="" style_given="" QUIET=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply) apply=carbon; case "${2:-}" in ink|paper|carbon) apply="$2"; shift ;; esac ;;
     --fonts) fonts=1 ;;
-    --style) case "${2:-}" in oxygen) STYLE=Oxygen ;; breeze) STYLE=Breeze ;; *) die "--style takes oxygen or breeze" ;; esac; style_given=1; shift ;;
+    --style) case "${2:-}" in glass) STYLE=kvantum ;; oxygen) STYLE=Oxygen ;; breeze) STYLE=Breeze ;; *) die "--style takes glass, oxygen or breeze" ;; esac; style_given=1; shift ;;
     --frosted-titlebar) DECO=-frosted ;;
     --launcher-icon) icon=1 ;;
     --quiet-second-screen) QUIET=1 ;;
