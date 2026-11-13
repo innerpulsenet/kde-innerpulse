@@ -19,6 +19,7 @@ import { CURSOR_THEMES, writeCursorTheme } from './lib/cursors.mjs';
 import { WALLPAPERS, DEFAULT_WALLPAPER, WALLPAPER_SIZES, OLED_GROUND, LOCK_MARK, LOCK_SIZES, ART, quietWallpaper, lockWallpaper } from './lib/wallpaper.mjs';
 import { MARK, PLATE, PULSE, TEMPO, LAMP, barHeights } from './lib/mark.mjs';
 import { preview, splashPreview, SPLASH } from './lib/preview.mjs';
+import { PLYMOUTH, plymouthArt, plymouthDescriptor, plymouthScript } from './lib/plymouth.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BRAND = join(ROOT, 'brand');
@@ -299,5 +300,18 @@ for (const theme of ICON_THEMES) {
 for (const c of CURSOR_THEMES) {
   writeCursorTheme(join(DIST, 'icons', c.id), { still: c.still, fast });
   log('cursor theme', c.id);
+}
+
+// 9. the boot screen: a Plymouth theme, the splash's picture from the kernel's first frame. It installs system-wide
+//    (install.sh --boot), so it sits beside the ~/.local/share tree rather than in it
+{
+  const base = `plymouth/themes/${PLYMOUTH.id}`;
+  for (const a of plymouthArt(carbon)) raster(putBuild(`plymouth/${a.name.replace(/\.png$/, '.svg')}`, a.svg), join(DIST, base, a.name), a.w, a.h);
+  // the outlined wordmark at twice the 1080p height, scaled by the script
+  const wh = Math.round(PLYMOUTH.wordmarkH * 36), ww = Math.round(wh * PLYMOUTH.wordmarkRatio);
+  raster(join(BRAND, 'innerpulse-wordmark-on-dark.svg'), join(DIST, base, 'wordmark.png'), ww, wh);
+  put(`${base}/${PLYMOUTH.id}.plymouth`, plymouthDescriptor());
+  put(`${base}/${PLYMOUTH.id}.script`, plymouthScript(carbon, VERSION));
+  log('boot screen', PLYMOUTH.id);
 }
 console.log(`built ${VERSION} → ${DIST}`);

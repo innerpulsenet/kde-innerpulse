@@ -35,6 +35,7 @@ These previews are illustrations drawn from the theme's own palette and geometry
 | Wallpapers | The OLED set: sixteen images in four sets (Afterglow Prism, Phosphor Harmonics, Chromatic Helix, Pulse Chronograph) on a true black ground, each in 2560 × 1440, 3440 × 1440, 3840 × 2160 and 5120 × 2160, so 16:9 and 21:9 screens both get a native rendition. **Afterglow Prism** is the default for every variant. A quiet ground, the same black with nothing on it, is there for a second screen (`--quiet-second-screen`) |
 | The mark | The plate: the beat cut out of a solid ember tile, as the brand now draws it. Where the viewer rests or waits (the splash, the lock screen, the logout prompt) it is live: its slots open once, then a pulse of light passes through them. The plate itself never moves. In a panel, where it would be under 32 px, the mark is the six bars alone. The bars themselves move in two places only: the busy cursors and the loading throbber |
 | Splash screen | The plate on carbon, centered, with the wordmark under it. Its slots open, then a pulse of light passes through them every 2.4 s while Plasma starts, over a working line that shows the real elapsed time. When start-up is done the pulse in flight finishes and the screen fades. It holds still when animations are off, and the timer then counts whole seconds |
+| Boot screen `innerpulse` | A Plymouth theme: the splash's picture from the first frame the kernel can draw, and again on the way down. The plate on carbon with the wordmark under it; its slots open once, then a pulse of light passes through them every 2.4 s. The line at the foot says which way the machine is going and shows whatever the system sends (a disk check, a passphrase prompt in a glass field). No progress bar and no timer: Plymouth's progress is an estimate from the last boot. Installed system-wide by `--boot` |
 | Lock screen | The variant's ground with the plate low and to the right, so the clock, avatar, password field and footer sit on clear ground, shown by a small wallpaper plugin (`net.innerpulse.lock`) that draws the live plate over the resting one, a pulse of light every 4.5 s. It holds still when animations are off |
 | Logout prompt | Plasma's own prompt, loaded as it is, on the carbon ground instead of black, with the countdown in JetBrains Mono and the live plate above the avatar at the 4.5 s ambient tempo |
 | Motion | Windows open and close on a shorter, shallower scale (160 ms from 94 %, instead of 200 ms from 80 %). Launch feedback is static: the starting app's icon sits still by the pointer instead of bouncing. Oxygen's widget animations follow Plasma's animation speed (see below) |
@@ -102,6 +103,8 @@ Everything installs under `~/.local/share` for the current user (the application
 | `--quiet-second-screen` | With `--apply`: on more than one screen, the wallpaper stays on the primary screen and every other screen gets its black with nothing on it. By default every screen shows the same wallpaper |
 | `--fonts` | Fetch Inter, Instrument Sans, JetBrains Mono and Syne (SIL OFL) into `~/.local/share/fonts/innerpulse`. With them installed, `--apply` sets the interface and fixed-width fonts |
 | `--launcher-icon` | Put the mark on the application launcher: the six bars alone, as the brand draws the mark under 32 px, pixel-snapped at 22, 24 and 32 px so it stays sharp at panel size. The app icon, `innerpulse-app`, is the plate |
+| `--boot` | Install the boot screen and select it. This is the one system-wide part, so it asks for sudo: it writes `/usr/share/plymouth/themes/innerpulse`, selects it (`update-alternatives`, or `plymouth-set-default-theme` where that is the tool) and rebuilds the initramfs. The selection it replaces is noted beside the theme |
+| `--boot-restore` | Select the previous boot screen again, remove ours and rebuild the initramfs (sudo). `--uninstall` does not touch the boot screen |
 | `--restore` | Put back what was active before the first `--apply`, the lock screen included. The desktop wallpaper is left as it is |
 | `--uninstall` | Restore, then remove every installed file. Each screen still showing an innerpulse wallpaper is switched to the previous global theme's wallpaper (or Plasma's Next); screens showing your own wallpaper keep it. Fetched fonts are left in place |
 
@@ -131,6 +134,19 @@ In the smoked-glass style (Kvantum):
 - Kvantum sets an app's colors from its own theme, so the glass style follows the variant you applied, not a
   color scheme picked by hand later. Run `--apply` with the variant to switch both.
 - GTK apps are not drawn by Kvantum; they keep Breeze GTK with the scheme's colors.
+
+The cursors:
+
+- Plasma lists cursor themes through libXcursor, and many builds of it search `~/.icons` but not
+  `~/.local/share/icons`. `install.sh` therefore links both cursor themes into `~/.icons`; `--uninstall` removes
+  the links.
+
+The boot screen:
+
+- A passphrase prompt was checked in the Plymouth engine, but the bullets that appear as you type were not:
+  the test window takes no synthetic keys. If you unlock a disk at boot and they look wrong, say so.
+- Text needs Plymouth's label plugin and a font in the initramfs. It asks for JetBrains Mono and falls back to
+  whatever monospace face the initramfs carries.
 
 The next two come from Oxygen's widget style (`--style oxygen`), so a color scheme can't change them.
 
@@ -169,6 +185,7 @@ src/lib/
   kvantum.mjs     the application style: Kvantum's SVG and configuration for each variant
   icons.mjs       the icon themes: places, file types, devices, generic apps, the throbber
   cursors.mjs     the cursor themes, as SVG cursors and as classic cursor files
+  plymouth.mjs    the boot screen: the Plymouth script, and the plates and lamps it shows
   wallpaper.mjs   the wallpaper list, the quiet ground and the lock screen's ground
   preview.mjs     the global-theme and splash previews
 src/splash/       Splash.qml
