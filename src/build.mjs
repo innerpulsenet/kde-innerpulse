@@ -5,7 +5,7 @@
 //   node src/build.mjs --fast     package only the 2560 × 1440 wallpapers and lock grounds, for quick iteration
 //
 // Needs node ≥ 20, rsvg-convert (librsvg) and ImageMagick's magick. No npm packages.
-import { mkdirSync, writeFileSync, rmSync, copyFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, copyFileSync, readFileSync, existsSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,9 @@ import { themes, ink, paper, carbon } from './lib/palette.mjs';
 import { colorScheme, konsoleScheme, konsoleProfile, contrastGate } from './lib/colors.mjs';
 import { plasmaTheme, desktopThemeId } from './lib/plasma.mjs';
 import { auroraeTheme } from './lib/aurorae.mjs';
+import { kvantumTheme } from './lib/kvantum.mjs';
+import { ICON_THEMES, iconTheme } from './lib/icons.mjs';
+import { CURSOR_THEMES, writeCursorTheme } from './lib/cursors.mjs';
 import { WALLPAPERS, DEFAULT_WALLPAPER, WALLPAPER_SIZES, OLED_GROUND, LOCK_MARK, LOCK_SIZES, ART, quietWallpaper, lockWallpaper } from './lib/wallpaper.mjs';
 import { MARK, PLATE, PULSE, TEMPO, LAMP, barHeights } from './lib/mark.mjs';
 import { preview, splashPreview, SPLASH } from './lib/preview.mjs';
@@ -113,6 +116,14 @@ for (const t of themes) for (const frosted of [false, true]) {
 }
 log('Aurorae decorations');
 
+// 3b. the application style: one Kvantum theme per variant. install.sh copies these into ~/.config/Kvantum, where
+//     Kvantum looks for a user's themes, so they sit beside dist/'s ~/.local/share layout under their own folder.
+for (const t of themes) {
+  const { id, files } = kvantumTheme(t, VERSION);
+  for (const [rel, data] of Object.entries(files)) put(`Kvantum/${id}/${rel}`, data);
+}
+log('Kvantum themes');
+
 // 4. wallpapers: the OLED set, packaged as they are, one ground for every variant (images/ only)
 const meta = (id, name, desc) => put(`wallpapers/${id}/metadata.json`, JSON.stringify({
   KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: desc, Id: id, License: 'All rights reserved: see BRAND.md', Name: name, Version: VERSION },
@@ -194,6 +205,8 @@ for (const t of themes) {
     },
     'X-Plasma-MainScript': 'defaults',
   }, null, 4) + '\n');
+  // The widget style here stays Oxygen: a global theme cannot choose Kvantum's theme, and Kvantum without ours
+  // chosen would draw its own. install.sh --apply switches to the smoked-glass style and sets its theme.
   put(`${base}/contents/defaults`, `[kdeglobals][KDE]
 widgetStyle=Oxygen
 
@@ -203,7 +216,7 @@ AccentColor=
 accentColorFromWallpaper=false
 
 [kdeglobals][Icons]
-Theme=${t.dark ? 'breeze-dark' : 'breeze'}
+Theme=${ICON_THEMES.find((i) => i.dark === t.dark).id}
 
 [plasmarc][Theme]
 name=${desktopThemeId(t)}
@@ -212,7 +225,7 @@ name=${desktopThemeId(t)}
 Image=${DEFAULT_WALLPAPER}
 
 [kcminputrc][Mouse]
-cursorTheme=breeze_cursors
+cursorTheme=${CURSOR_THEMES[0].id}
 
 [kwinrc][org.kde.kdecoration2]
 library=org.kde.kwin.aurorae
@@ -268,4 +281,23 @@ for (const [N, bar, gap, rx] of [[22, 2, 2, 0.5], [24, 2, 2, 0.5], [32, 3, 2, 0.
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${N} ${N}" width="${N}" height="${N}"><g fill="#f43a2a">${rects}</g></svg>\n`);
 }
 log('icons');
+
+// 7. the icon themes: places, file types, devices and a few generic apps in smoked glass, one theme for the dark
+//    grounds and one for Paper; everything else is inherited from Breeze
+for (const theme of ICON_THEMES) {
+  let count = 0;
+  for (const [rel, data] of Object.entries(iconTheme(theme, VERSION))) {
+    if (typeof data === 'string') put(`icons/${theme.id}/${rel}`, data);
+    else { const p = join(DIST, 'icons', theme.id, rel); mkdirSync(dirname(p), { recursive: true }); symlinkSync(data.link, p); }
+    count++;
+  }
+  log('icon theme', theme.id, count);
+}
+
+// 8. the cursor themes: dark glass pointers, with the bars in motion on the two busy shapes; the still one holds
+//    them at rest, for a desktop with animations turned off (install.sh picks)
+for (const c of CURSOR_THEMES) {
+  writeCursorTheme(join(DIST, 'icons', c.id), { still: c.still, fast });
+  log('cursor theme', c.id);
+}
 console.log(`built ${VERSION} → ${DIST}`);
