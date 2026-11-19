@@ -168,8 +168,10 @@ function tasks(t) {
   out.push(hints('normal-', { top: 4, bottom: 4, left: 4, right: 4 }, 10, 10 + 4 * (size + 10)));
   // Group expanders: small machined chevrons pointing at the panel's edge. The task manager pins each one flush
   // to the task's edge at its natural size, which is where the state bar runs: the old 4 px tall chevron in an
-  // 8 px box reached the bar's own pixels. This one is 3 px tall and sits 2 px clear of the bar, low enough to
-  // stay under the icon of a 44 or 46 px panel.
+  // 8 px box reached the bar's own pixels. This one is 3 px tall and sits 2 px clear of the bar. It still lands
+  // on the foot of an icon that fills its canvas (a round app logo), so it stands on a halo of the panel's
+  // ground and reads over any icon, as a badge. Qt pads a stroke's bounds by half its width × √2, so the halo
+  // is 2.8 px: any wider and it reaches past the box, and the element's size turns fractional.
   const gy = 40 + 4 * (size + 10);
   const chev = {
     top: 'M3 8 L6 5 L9 8', bottom: 'M3 2 L6 5 L9 2', left: 'M8 3 L5 6 L8 9', right: 'M2 3 L5 6 L2 9',
@@ -177,7 +179,10 @@ function tasks(t) {
   Object.entries(chev).forEach(([dir, d], i) => {
     const ox = 10 + i * 20;
     const [w, h] = dir === 'top' || dir === 'bottom' ? [12, 10] : [10, 12];
-    out.push(`<g id="group-expander-${dir}">${spacer(ox, gy, w, h)}<path transform="translate(${ox} ${gy})" d="${d}" fill="none" stroke-width="1.5" stroke-linecap="square" class="ColorScheme-Text" stroke="currentColor" opacity=".7"/></g>`);
+    const at = `transform="translate(${ox} ${gy})" d="${d}" fill="none"`;
+    out.push(`<g id="group-expander-${dir}">${spacer(ox, gy, w, h)}` +
+      `<path ${at} stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" class="ColorScheme-Background" stroke="currentColor" opacity=".85"/>` +
+      `<path ${at} stroke-width="1.5" stroke-linecap="square" class="ColorScheme-Text" stroke="currentColor" opacity=".8"/></g>`);
   });
   const H2 = 80 + 4 * (size + 10);
   return doc(10 + 6 * (size + 10), H2, out.join('\n'), { style: colorStyle(t) });
