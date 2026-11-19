@@ -192,10 +192,13 @@ function themeSvg(t) {
   nine('lineedit-normal', well);
   nine('lineedit-focused', [...focusGlow, ...well]);
 
-  // frames round views and panels: a hairline with the shade of a well inside its top edge
+  // Frames round views and panels: a hairline with the shade of a well inside its top edge. A view that has the
+  // focus (a file view, an editor, a list) keeps it nearly all the time, so its ring is a single ember hairline
+  // at 60%: enough to tell which pane of a split view is live, without a full-strength red rectangle round the
+  // whole window. The 2 px ember glow is for controls, where focus moves.
   const F2 = { F: 2 };
   nine('common-normal', [{ ring: m.wellRim, d: 0, r: 2 }, { ring: m.shadeIn, d: 1, r: 1, rows: [0] }], F2);
-  nine('common-focused', [{ ring: [m.focus, 0.9], d: 0, r: 2 }, { ring: [m.focus, 0.3], d: 1, r: 1 }], F2);
+  nine('common-focused', [{ ring: [m.focus, 0.6], d: 0, r: 2 }, { ring: m.shadeIn, d: 1, r: 1, rows: [0] }], F2);
 
   // group boxes and the page under a row of tabs: a faint pane of glass
   const pane = [{ fill: [WHITE, t.dark ? 0.03 : 0.35], d: 0, r: 5 }, { ring: m.rim, d: 0, r: 5 }, { hline: [WHITE, t.dark ? 0.07 : 0.6], side: 'top', d: 1, x: 5 }];
@@ -318,7 +321,9 @@ function themeSvg(t) {
 
   // small furniture: grips, handles, the dial
   const dots = (pts, r = 0.9) => (x, y) => pts.map(([dx, dy]) => `<path d="${circle(x + dx, y + dy, r)}" ${pa([t.text3, 0.8])}/>`).join('');
-  for (const s of ['normal', 'focused', 'pressed']) el(`splitter-grip-${s}`, 16, 16, dots([[8, 4], [8, 8], [8, 12]]));
+  // the splitter grip is drawn at the splitter's width (2 px, see splitter_width), so it is 2 px wide: three dots
+  // that land on whole pixels, rather than a 16 px grip squeezed into a smear
+  for (const s of ['normal', 'focused', 'pressed']) el(`splitter-grip-${s}`, 2, 16, dots([[1, 4], [1, 8], [1, 12]], 1));
   for (const s of ['normal', 'focused']) el(`resize-grip-${s}`, 13, 13, dots([[10, 10], [10, 6], [6, 10], [10, 2], [2, 10], [6, 6]], 0.8));
   el('toolbar-handle', 5, 16, dots([[2.5, 4], [2.5, 8], [2.5, 12]]));
   el('dial', 48, 48, (x, y) => `<path d="${circle(x + 24, y + 24, 23)}" ${pa(m.well)}/><path d="${circle(x + 24, y + 24, 23)}${circle(x + 24, y + 24, 22)}" fill-rule="evenodd" ${pa(m.wellRim)}/>`);
@@ -379,7 +384,10 @@ function themeConfig(t, version) {
       spread_progressbar: true, progressbar_thickness: 16, textless_progressbar: false,
       composite: true, translucent_windows: false, blurring: false, popup_blurring: false,
       menu_shadow_depth: SHADOW.menu, tooltip_shadow_depth: SHADOW.tooltip, spread_menuitems: true, submenu_overlap: 0,
-      splitter_width: 7, scroll_width: 12, scroll_min_extent: 44, scroll_arrows: false, transient_scrollbar: false,
+      // 2, not Kvantum's usual 7: Dolphin pads the label in its floating status bar by 2 + 2 × this, twice on the
+      // left and once on the right, but sizes the bar for only two of the three, so at 7 the label lost 9 px and
+      // elided ("7 folders, 5…s"). At 2 it fits. Kvantum uses the same width for dock separators.
+      splitter_width: 2, scroll_width: 12, scroll_min_extent: 44, scroll_arrows: false, transient_scrollbar: false,
       slider_width: 6, slider_handle_width: 18, slider_handle_length: 18, tickless_slider_handle_size: 18, check_size: 16,
       combo_as_lineedit: false, combo_menu: true, hide_combo_checkboxes: true, square_combo_button: false, inline_spin_indicators: true, vertical_spin_indicators: false,
       merge_menubar_with_toolbar: true, groupbox_top_label: true, remove_extra_frames: true, fill_rubberband: false,
