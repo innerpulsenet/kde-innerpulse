@@ -4,8 +4,9 @@
 //
 // The plate never moves. Its slots open once, then a pulse of light passes through them at the working tempo. A
 // Plymouth script can only place, fade and swap bitmaps, so the opening is a run of rendered plates (FRAMES of
-// them, the last one the plate at rest) and the light is six lamp bitmaps, one per slot, whose opacity the script
-// drives with the same sin² bump as AmbientMark.qml.
+// them, the last one the plate at rest) and the light is two lamp bitmaps per slot, the ignite ember and the hot
+// lamp over it, whose opacities the script drives with AmbientMark.qml's sin² bump and the brand kit's lampLayers:
+// a slot heats through the ignite ember before it blooms, and never passes through gray.
 //
 // The line at the foot says only what Plymouth knows: which way the machine is going, and whatever message the
 // system sends (a disk check, a prompt). There is no progress bar and no timer: Plymouth's progress is a guess
@@ -15,7 +16,7 @@
 // between 12 and 36. Bitmaps ship at two sizes, for a 162 px and a 324 px plate, and the script scales from the
 // nearer one above.
 
-import { MARK, PLATE, PULSE, TEMPO, LAMP, barHeights, plateD, slotRects } from './mark.mjs';
+import { MARK, PLATE, PULSE, TEMPO, LAMP, IGNITE, barHeights, plateD, slotRects } from './mark.mjs';
 import { hexRGB } from './palette.mjs';
 import { SPLASH } from './preview.mjs';
 
@@ -56,8 +57,9 @@ export function plymouthArt(t) {
       out.push({ name: `${tag}-plate-${k}.png`, w: px, h: px,
         svg: svg(vb, px, px, `<path fill="${t.mark}" fill-rule="evenodd" d="${plateD({ heights })}"/>`) });
     }
-    slotRects().forEach((s, i) => out.push({ name: `${tag}-lamp-${i}.png`, w: px, h: px,
-      svg: svg(vb, px, px, `<rect x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" rx="${f(s.rx)}" fill="${LAMP}"/>`) }));
+    // each slot's two lamp layers: ignite-i under lamp-i
+    slotRects().forEach((s, i) => [['ignite', IGNITE], ['lamp', LAMP]].forEach(([layer, color]) => out.push({ name: `${tag}-${layer}-${i}.png`, w: px, h: px,
+      svg: svg(vb, px, px, `<rect x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" rx="${f(s.rx)}" fill="${color}"/>`) })));
   }
   // the password field and its bullet, drawn for a 36 px grid unit and scaled down by the script
   const G = 36, ew = P.entry.w * G, eh = P.entry.h * G, r = 8, b = Math.round(P.bullet * G);
@@ -135,9 +137,13 @@ plate.SetPosition(plate_x, plate_y, 10);
 plate.SetOpacity(0);
 shown = 0;
 
+# two layers per slot: the ignite ember, and the hot lamp over it
 for (i = 0; i < SLOTS; i++) {
+    ignites[i] = Sprite(Art("ignite-" + i));
+    ignites[i].SetPosition(plate_x, plate_y, 11);
+    ignites[i].SetOpacity(0);
     lamps[i] = Sprite(Art("lamp-" + i));
-    lamps[i].SetPosition(plate_x, plate_y, 11);
+    lamps[i].SetPosition(plate_x, plate_y, 12);
     lamps[i].SetOpacity(0);
 }
 
@@ -359,7 +365,13 @@ fun refresh_callback() {
                 lit = s * s;
             }
         }
-        lamps[i].SetOpacity(lit);
+        # heat, don't fade: ignite comes up over the first half of the bump, then hot blooms over it
+        local.lo = 2 * lit;
+        if (lo > 1) lo = 1;
+        local.hi = 2 * lit - 1;
+        if (hi < 0) hi = 0;
+        ignites[i].SetOpacity(lo);
+        lamps[i].SetOpacity(hi);
     }
 }
 Plymouth.SetRefreshFunction(refresh_callback);

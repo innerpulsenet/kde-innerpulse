@@ -4,8 +4,10 @@
 
     The plate never moves. On load its slots open once, bar by bar from the left, in about a second; then every
     period one pulse of light passes through the slots, left to right, each slot lit with a sin² bump and going
-    dark again. A pulse is over in (5·lag + width)·period, and between pulses nothing redraws, which matters under
-    the lock screen's live blur. The slots are cut through, so between pulses they show whatever is behind.
+    dark again. A lamp heats rather than fades: two layers, the ignite ember coming up over the first half of the
+    bump and the hot lamp blooming over it, so a slot never passes through gray (the brand kit's lampLayers). A
+    pulse is over in (5·lag + width)·period, and between pulses nothing redraws, which matters under the lock
+    screen's live blur. The slots are cut through, so between pulses they show whatever is behind.
 
     The mark holds still, slots open and dark, when animations are turned off, when it is drawn under 48 px, or
     when its owner clears `beating`. `period` is the ambient tempo unless the owner sets another (the splash runs
@@ -24,6 +26,7 @@ Item {
 
     property color color: "#f43a2a"
     property color lamp: "#ffd9c2" /*@LAMP@*/
+    property color ignite: "#a51c10" /*@IGNITE@*/
     property bool beating: true
     property bool settled: false
     property real period: 4.5 /*@AMBIENT@*/
@@ -110,20 +113,23 @@ Item {
     // turned off mid-pulse (and not by `settled`, which lets the pulse finish): go dark at once
     onBeatingChanged: if (!beating) { pulse.running = false; t = 0; }
 
-    // the lamps, under the plate: one per slot, seen through it as the pulse passes
+    // the lamps, under the plate: two layers per slot, seen through it as the pulse passes. Even entries are the
+    // ignite layer at min(1, 2·lit), odd ones the hot lamp over it at max(0, 2·lit − 1).
     Repeater {
-        model: mark.beats + 1
+        model: 2 * (mark.beats + 1)
         Rectangle {
             required property int index
-            readonly property real h: mark.slotH(index)
+            readonly property int slot: index >> 1
+            readonly property bool hot: index & 1
+            readonly property real h: mark.slotH(slot)
             visible: opacity > 0
-            opacity: mark.lit(index)
-            x: mark.width / 2 + mark.slotX(index) * mark.s
+            opacity: Math.min(1, Math.max(0, hot ? 2 * mark.lit(slot) - 1 : 2 * mark.lit(slot)))
+            x: mark.width / 2 + mark.slotX(slot) * mark.s
             y: mark.height / 2 - h * mark.s
             width: mark.stroke * mark.cut * mark.s
             height: 2 * h * mark.s
             radius: mark.corner * mark.cut * mark.s
-            color: mark.lamp
+            color: hot ? mark.lamp : mark.ignite
             antialiasing: true
         }
     }

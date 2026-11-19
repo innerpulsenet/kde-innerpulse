@@ -37,6 +37,15 @@ export const PLATE = {
 
 /** The lamp: a lit slot, the light seen through the plate as the pulse passes. */
 export const LAMP = '#ffd9c2';
+/** The ignite ember: a lamp heats through this before it blooms to LAMP (the brand kit's BRAND.ignite). */
+export const IGNITE = '#a51c10';
+
+/**
+ * A lamp at level 0 … 1 as two layers, so it heats instead of fading (the brand kit's lampLayers, 2026-11-16):
+ * [the ignite layer's opacity, the hot layer's]. Ignite comes up over the first half, then hot blooms over it.
+ * One hot layer at partial opacity passes through gray over ink, and an ember first stage would hide the cut.
+ */
+export const lampLayers = (l) => [Math.min(1, Math.max(0, 2 * l)), Math.min(1, Math.max(0, 2 * l - 1))];
 
 // The tempos, in seconds per pulse of light: ambient where the viewer rests (the lock and logout screens), working
 // while something runs (the splash), busy for a short wait.
@@ -104,11 +113,38 @@ export function beatBars(u) {
   });
 }
 
-/** A bar's color at light l: ember toward the lamp. */
+// OKLab, for mixing light the way the brand's working line does (color-mix in oklch, 2026-11-18): a straight
+// sRGB mix of ember and the lamp passes through washed-out salmon halfway.
+const toLin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const toGam = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+function oklch(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => toLin(parseInt(hex.slice(i, i + 2), 16) / 255));
+  const [l, m, s] = [0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b, 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+    0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b].map(Math.cbrt);
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return [L, Math.hypot(A, B), (Math.atan2(B, A) * 180) / Math.PI];
+}
+function linFromOklch([L, C, H]) {
+  const A = C * Math.cos((H * Math.PI) / 180), B = C * Math.sin((H * Math.PI) / 180);
+  const [l, m, s] = [L + 0.3963377774 * A + 0.2158037573 * B, L - 0.1055613458 * A - 0.0638541728 * B, L - 0.0894841775 * A - 1.291485548 * B].map((v) => v ** 3);
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
+}
+// back to sRGB hex; out of gamut, the chroma comes down (hue and lightness kept) until it fits, as CSS maps it
+function hexFromOklch([L, C, H]) {
+  const fits = (c) => linFromOklch([L, c, H]).every((v) => v >= -1e-4 && v <= 1 + 1e-4);
+  let c = C;
+  if (!fits(c)) { let lo = 0, hi = C; for (let k = 0; k < 24; k++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; } c = lo; }
+  return '#' + linFromOklch([L, c, H]).map((v) => Math.round(255 * toGam(Math.min(1, Math.max(0, v)))).toString(16).padStart(2, '0')).join('');
+}
+
+/** A bar's color at light l: ember toward the lamp, mixed in OKLCH along the shorter hue arc. */
 export function litColor(l, from = '#f43a2a', to = LAMP) {
-  const c = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  const [a, b] = [c(from), c(to)];
-  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * l).toString(16).padStart(2, '0')).join('');
+  const [a, b] = [oklch(from), oklch(to)];
+  let dh = b[2] - a[2];
+  if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
+  return hexFromOklch([a[0] + (b[0] - a[0]) * l, a[1] + (b[1] - a[1]) * l, a[2] + dh * l]);
 }
 
 /** The optical minimum with a soft landing: a cubic Hermite join from minBar up to ease. */
