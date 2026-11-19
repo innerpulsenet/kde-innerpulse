@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { barRects, plateAt } from './mark.mjs';
 import { n } from './svg.mjs';
+import { GLASS } from './glass.mjs';
 
 const VW = 2560, VH = 1440;
 
@@ -56,10 +57,10 @@ export function preview(t, wallpaperJpg) {
   out.push(`<rect x="${W.x + W.w - 160}" y="${W.y + W.h - 58}" width="136" height="36" rx="4" fill="${t.action}"/><text x="${W.x + W.w - 92}" y="${W.y + W.h - 35}" text-anchor="middle" ${sans} font-size="12" font-weight="600" letter-spacing="1.6" fill="#fff">OPEN</text>`);
   out.push(`<rect x="${W.x + W.w - 310}" y="${W.y + W.h - 58}" width="136" height="36" rx="4" fill="${t.dark ? t.s3 : t.s1}" stroke="${line}" stroke-opacity=".18"/><text x="${W.x + W.w - 242}" y="${W.y + W.h - 35}" text-anchor="middle" ${sans} font-size="12" font-weight="600" letter-spacing="1.6" fill="${t.text}">CANCEL</text>`);
 
-  // panel (floating), with the faint scale on its top edge
+  // panel (floating): a glass edge, the hairline and the highlight lip just inside it, and nothing else
   const P = { x: 720, y: VH - 66, w: VW - 1440, h: 52 };
   out.push(`<rect x="${P.x}" y="${P.y}" width="${P.w}" height="${P.h}" rx="4" fill="${head}" fill-opacity="${t.dark ? 0.92 : 0.94}" stroke="${line}" stroke-opacity="${t.dark ? 0.16 : 0.18}"/>`);
-  for (let x = P.x + 8; x < P.x + P.w - 8; x += 8) out.push(`<rect x="${x}" y="${P.y + 1}" width="1" height="${(x - P.x) % 32 === 8 ? 4 : 2}" fill="${t.text}" opacity="${t.dark ? 0.12 : 0.16}"/>`);
+  out.push(`<rect x="${P.x + 4}" y="${P.y + 1}" width="${P.w - 8}" height="1" fill="#fff" fill-opacity="${GLASS[t.id].lip}"/>`);
   // launcher: the small mark (a panel icon is under 32 px, where the plate's slots would not read)
   const S = 30 / 220;
   out.push(`<g transform="translate(${P.x + 34} ${P.y + 26}) scale(${n(S)})" fill="${t.mark}">${barRects().map((r) => `<rect x="${n(r.x)}" y="${n(r.y)}" width="${r.w}" height="${n(r.h)}" rx="${r.rx}"/>`).join('')}</g>`);

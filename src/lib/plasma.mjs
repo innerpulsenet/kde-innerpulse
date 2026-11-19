@@ -4,7 +4,8 @@
 // no color scheme can carry.
 //
 // What it draws itself (anything else falls back to Breeze, which also follows the color scheme):
-//   panel        the header ground, a hairline, and a faint graduated scale along the long edges
+//   panel        the header ground and its glass edge: the hairline and the highlight lip, nothing else (the
+//                brand keeps scales and ruler ticks for things that measure, since 2026-11-14)
 //   dialogs      popups on the window ground, hairline ring, soft shadow, one ember index tick at top left
 //   tooltips     the same, one step lighter, no tick
 //   widgets      desktop widget cards
@@ -59,23 +60,14 @@ function glassPaint(t, name, c, f, r, border) {
   return s;
 }
 
-function framedSurface(t, { bg, alpha, r = 4, cell = 8, margins, insets, tick = false, scale = false, shadow = true, shadowReach = 22, shadowDy = 6, shadowAlpha, glass = true, more = '' }) {
+function framedSurface(t, { bg, alpha, r = 4, cell = 8, margins, insets, tick = false, shadow = true, shadowReach = 22, shadowDy = 6, shadowAlpha, glass = true, more = '' }) {
   const W = 32, H = 32;
   const fill = cls(bg, alpha);
   const stroke = `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.16 : 0.18}"`;
   const extra = (name, c, f) => {
     let s = glass ? glassPaint(t, name, c, f, r, 1) : '';
-    // the index tick: one short ember bar along the top edge, just inside the corner, like a cursor on a scale
+    // the index tick: one short ember bar along the top edge, just inside the corner, where the focus is
     if (tick && name === 'topleft') s += rect(c.x + r + TICK.gap, c.y, Math.min(TICK.length, c.w - r - TICK.gap), TICK.thickness, cls('ButtonFocus'));
-    // the scale: 1 px ticks every 8 px, every fourth one longer, very faint. The edge tiles, so the scale runs
-    // the full length of the panel.
-    if (scale && (name === 'top' || name === 'bottom')) {
-      for (let i = 0; i < W; i += 8) {
-        const h = i === 0 ? 4 : 2;
-        const y = name === 'top' ? c.y + 2 : c.y + c.h - 2 - h;
-        s += rect(c.x + i + 3.5, y, 1, h, `class="ColorScheme-Text" fill="currentColor" opacity="${t.dark ? 0.12 : 0.16}"`);
-      }
-    }
     return s;
   };
   const geo = { L: cell, T: cell, R: cell, B: cell, W, H, r };
@@ -109,7 +101,7 @@ function surfaces(t) {
   // The panel's "thick" prefix is never drawn: Panel.qml reads only its margins, adds smallSpacing and caps
   // the sum by the panel's thickness. 8 is Breeze's value, so a 46 px panel pads 12 px and its icons are
   // 22 px, as Plasma lays them out. Without these hints the prefix fell back to panelM (4) and the icons grew
-  // to 30 px, close enough to the edges to crowd the graduated scale.
+  // to 30 px, crowding the panel's edges.
   const thick = '<rect id="thick-center" x="200" y="10" width="32" height="32" fill="#f0f" opacity=".001"/>\n' +
     hints('thick-', { top: 8, bottom: 8, left: 8, right: 8 }, 240, 10);
   // Popups: an inset of 1 (the hairline) lets a popup that asks to collapse its margins (the clipboard, KDE
@@ -118,7 +110,7 @@ function surfaces(t) {
   const dialogI = { top: 1, bottom: 1, left: 1, right: 1 };
   const variants = [['', 1, 1], ['translucent/', t.dark ? 0.74 : 0.78, t.dark ? 0.92 : 0.93], ['solid/', 1, 1], ['opaque/', 1, 1]];
   for (const [dir, a, pop] of variants) {
-    files[`${dir}widgets/panel-background.svg`] = framedSurface(t, { bg: 'HeaderBackground', alpha: a, cell: 14, margins: panelM, scale: true, shadowReach: 16, shadowDy: 2, shadowAlpha: t.shadowAlpha * 0.7, more: thick });
+    files[`${dir}widgets/panel-background.svg`] = framedSurface(t, { bg: 'HeaderBackground', alpha: a, cell: 14, margins: panelM, shadowReach: 16, shadowDy: 2, shadowAlpha: t.shadowAlpha * 0.7, more: thick });
     files[`${dir}dialogs/background.svg`] = framedSurface(t, { bg: 'Background', alpha: pop, cell: 20, margins: dialogM, insets: dialogI, tick: true, shadowDy: 3 });
     files[`${dir}widgets/tooltip.svg`] = framedSurface(t, { bg: 'Background', alpha: pop, margins: { top: 6, bottom: 6, left: 8, right: 8 }, shadowReach: 14, shadowDy: 2 });
     files[`${dir}widgets/background.svg`] = framedSurface(t, { bg: 'Background', alpha: pop, cell: 20, margins: { top: 10, bottom: 10, left: 10, right: 10 }, tick: true, shadowReach: 18, shadowDy: 3 });

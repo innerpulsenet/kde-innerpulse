@@ -17,7 +17,7 @@ import { kvantumTheme } from './lib/kvantum.mjs';
 import { ICON_THEMES, iconTheme } from './lib/icons.mjs';
 import { CURSOR_THEMES, writeCursorTheme } from './lib/cursors.mjs';
 import { WALLPAPERS, DEFAULT_WALLPAPER, WALLPAPER_SIZES, OLED_GROUND, FOOTER, footerBoxes, LOCK_MARK, LOCK_SIZES, ART, quietWallpaper, lockWallpaper } from './lib/wallpaper.mjs';
-import { MARK, PLATE, PULSE, TEMPO, LAMP, barHeights } from './lib/mark.mjs';
+import { MARK, PLATE, PULSE, TEMPO, LAMP, IGNITE, barHeights } from './lib/mark.mjs';
 import { preview, splashPreview, SPLASH } from './lib/preview.mjs';
 import { PLYMOUTH, plymouthArt, plymouthDescriptor, plymouthScript } from './lib/plymouth.mjs';
 
@@ -68,7 +68,7 @@ const QML_VALUES = {
   GROUND: q(carbon.ground), EMBER: q(carbon.mark), TEXT: q(carbon.text), TEXT3: q(carbon.text3),
   REST_H: q(barHeights().map((h) => +h.toFixed(2))),
   BEATS: MARK.beat, SPAN: MARK.span, STROKE: MARK.stroke, CORNER: MARK.corner,
-  PLATE: PLATE.size, PLATE_CORNER: PLATE.corner, CUT: PLATE.cut, LAMP: q(LAMP),
+  PLATE: PLATE.size, PLATE_CORNER: PLATE.corner, CUT: PLATE.cut, LAMP: q(LAMP), IGNITE: q(IGNITE),
   WORKING: TEMPO.working, AMBIENT: TEMPO.ambient, PULSE_W: PULSE.width, LAG: PULSE.lag,
   DRAW_IN: PULSE.drawIn, DRAW_LAG: PULSE.drawLag, STILL_UNDER: 48,
   SPLASH_PLATE: SPLASH.plate, SPLASH_LIFT: SPLASH.lift,
