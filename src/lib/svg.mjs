@@ -39,6 +39,23 @@ export function quarter(cx, cy, sx, sy, c, r, inset = 0) {
 }
 
 /**
+ * The part of a w×h corner cell that lies inside the frame: quarter() in the square of the short side, and the
+ * straight remainder when the cell is taller or wider than that. (cx, cy) is the frame's outer corner, sx and sy
+ * point into the cell, and `inset` shrinks the shape along the two outer edges. Returns path data.
+ */
+export function cornerArea(cx, cy, sx, sy, w, h, r, inset = 0) {
+  const c = Math.min(w, h);
+  const box = (u0, v0, u1, v1) => {
+    const [x0, x1] = [cx + sx * u0, cx + sx * u1].sort((a, b) => a - b), [y0, y1] = [cy + sy * v0, cy + sy * v1].sort((a, b) => a - b);
+    return `M${n(x0)},${n(y0)}H${n(x1)}V${n(y1)}H${n(x0)}Z`;
+  };
+  let d = quarter(cx, cy, sx, sy, c, r, inset);
+  if (h > c) d += box(inset, c, w, h);
+  if (w > c) d += box(c, inset, w, h);
+  return d;
+}
+
+/**
  * A frame as nine slices.
  *   prefix   element prefix ('' for plain, 'mask-', 'decoration-inactive-' …)
  *   x, y     where the slice grid starts in the document
@@ -145,7 +162,10 @@ export function shadowFrame({ x, y, s, inner = 6, r = 4, rgb = [0, 0, 0], alpha 
       defs.push(`<linearGradient id="${id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">${stops(alpha)}</linearGradient>`);
       paint = rect(gx, gy, gw, gh, `fill="url(#${id})"`);
     } else {
-      // corner: radial falloff around the frame corner, minus the part under the frame
+      // corner: radial falloff around the frame corner, minus the part under the frame. The edges never paint
+      // under the frame, and the corners mustn't either: Plasma's CheckIndicator lays this shadow over its box
+      // (it drew a dark square in each corner of an unchecked check box), and under a translucent popup or panel
+      // the shadow showed through as darker corners. Only the gap outside the frame's arc keeps its shadow.
       const fcx = ci === 0 ? cx + C.l + r : cx + inner - r;
       const fcy = ri === 0 ? cy + C.t + r : cy + inner - r;
       const reach = (ri === 0 ? C.t : C.b) + r;
@@ -153,7 +173,9 @@ export function shadowFrame({ x, y, s, inner = 6, r = 4, rgb = [0, 0, 0], alpha 
         [[0, 1], [r / reach, 1], [(r + 0.25 * (reach - r)) / reach, 0.62], [(r + 0.5 * (reach - r)) / reach, 0.3], [(r + 0.75 * (reach - r)) / reach, 0.1], [1, 0]]
           .map(([o, kk]) => `<stop offset="${n(o)}" stop-color="rgb(${R},${G},${B})" stop-opacity="${n(alpha * kk)}"/>`).join('') +
         `</radialGradient>`);
-      paint = rect(cx, cy, w, h, `fill="url(#${id})"`);
+      const sx = ci === 0 ? 1 : -1, sy = ri === 0 ? 1 : -1;
+      const ox = ci === 0 ? cx + C.l : cx + inner, oy = ri === 0 ? cy + C.t : cy + inner; // the frame's outer corner
+      paint = `<path d="M${n(cx)},${n(cy)}h${n(w)}v${n(h)}h${n(-w)}Z${quarter(ox, oy, sx, sy, inner, r)}" fill-rule="evenodd" fill="url(#${id})"/>`;
     }
     out.push(`<g id="shadow-${name}">${spacer(cx, cy, w, h)}${paint}</g>`);
   });
@@ -199,6 +221,18 @@ const polar = (cx, cy, r, a) => [cx + r * Math.cos((a * Math.PI) / 180), cy + r 
 export function arc(cx, cy, r, a0, a1) {
   const [x0, y0] = polar(cx, cy, r, a0), [x1, y1] = polar(cx, cy, r, a1);
   return `M${n(x0)},${n(y0)}A${n(r)} ${n(r)} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${n(x1)},${n(y1)}`;
+}
+
+/**
+ * A filled band between radii r0 < r1 from angle a0 to a1 (degrees, as arc() takes them). A stroked arc would
+ * do, but Qt counts half a stroke's width past every end of a path into an element's bounds, so a stroke that
+ * ends on a slice's edge widens the slice and FrameSvg lays the slices out half a pixel apart.
+ */
+export function sector(cx, cy, r0, r1, a0, a1) {
+  const [ox0, oy0] = polar(cx, cy, r1, a0), [ox1, oy1] = polar(cx, cy, r1, a1);
+  const [ix0, iy0] = polar(cx, cy, r0, a0), [ix1, iy1] = polar(cx, cy, r0, a1);
+  const large = a1 - a0 > 180 ? 1 : 0;
+  return `M${n(ox0)},${n(oy0)}A${n(r1)} ${n(r1)} 0 ${large} 1 ${n(ox1)},${n(oy1)}L${n(ix1)},${n(iy1)}A${n(r0)} ${n(r0)} 0 ${large} 0 ${n(ix0)},${n(iy0)}Z`;
 }
 
 // a full circle as two half arcs, one closed path (no <circle>, so rings can be cut with even-odd)

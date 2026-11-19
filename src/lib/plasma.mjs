@@ -19,7 +19,7 @@
 //
 // Ember stays where the brand puts it: focus rings, the index ticks, the focused task. Nothing here paints
 // ColorScheme-Highlight, so the selection color never reaches a meter, slider or switch.
-import { frame, maskFrame, shadowFrame, hints, insetHints, doc, colorStyle, rect, spacer, n, quarter, arc, disc, annulus, roundShadow } from './svg.mjs';
+import { frame, maskFrame, shadowFrame, hints, insetHints, doc, colorStyle, rect, spacer, n, quarter, cornerArea, arc, sector, disc, annulus, roundShadow } from './svg.mjs';
 import { GLASS, TICK } from './glass.mjs';
 
 const cls = (c, op = 1) => `class="ColorScheme-${c}" fill="currentColor"${op < 1 ? ` opacity="${n(op)}"` : ''}`;
@@ -166,14 +166,17 @@ function tasks(t) {
   }
   // margins for the icon inside a task
   out.push(hints('normal-', { top: 4, bottom: 4, left: 4, right: 4 }, 10, 10 + 4 * (size + 10)));
-  // group expanders: small machined chevrons pointing away from the panel edge
+  // Group expanders: small machined chevrons pointing at the panel's edge. The task manager pins each one flush
+  // to the task's edge at its natural size, which is where the state bar runs: the old 4 px tall chevron in an
+  // 8 px box reached the bar's own pixels. This one is 3 px tall and sits 2 px clear of the bar, low enough to
+  // stay under the icon of a 44 or 46 px panel.
   const gy = 40 + 4 * (size + 10);
   const chev = {
-    top: 'M2 6 L6 2 L10 6', bottom: 'M2 2 L6 6 L10 2', left: 'M6 2 L2 6 L6 10', right: 'M2 2 L6 6 L2 10',
+    top: 'M3 8 L6 5 L9 8', bottom: 'M3 2 L6 5 L9 2', left: 'M8 3 L5 6 L8 9', right: 'M2 3 L5 6 L2 9',
   };
   Object.entries(chev).forEach(([dir, d], i) => {
     const ox = 10 + i * 20;
-    const [w, h] = dir === 'top' || dir === 'bottom' ? [12, 8] : [8, 12];
+    const [w, h] = dir === 'top' || dir === 'bottom' ? [12, 10] : [10, 12];
     out.push(`<g id="group-expander-${dir}">${spacer(ox, gy, w, h)}<path transform="translate(${ox} ${gy})" d="${d}" fill="none" stroke-width="1.5" stroke-linecap="square" class="ColorScheme-Text" stroke="currentColor" opacity=".7"/></g>`);
   });
   const H2 = 80 + 4 * (size + 10);
@@ -259,15 +262,24 @@ function block(prefix, { fill, stroke = '', border = 1, cell = 6, r = 4, margins
 
 const ring = (cls2, op, width = 1) => ({ fill: 'fill="none"', stroke: `class="ColorScheme-${cls2}" fill="currentColor"${op < 1 ? ` opacity="${op}"` : ''}`, border: width });
 
-// shade/lip helpers on a frame's top or bottom edge cells
-function bevel(t, { raised = true, sheen = true }) {
+// shade/lip helpers on a frame's top or bottom edge cells. `r` is the frame's corner radius: the lip and the shade
+// start where the corner's curve ends, and in a top corner the sheen follows the arc to the side hairline. (It
+// used to stop r px short of it, which left a darker stripe down both ends of a tall frame: an active tab, the
+// panel's highlight behind an open applet.)
+function bevel(t, { raised = true, sheen = true, r = 4 }) {
   const g = GLASS[t.id];
   return (name, c, f) => {
     const isTop = name === 'top' || name === 'topleft' || name === 'topright';
     const isBottom = name === 'bottom' || name === 'bottomleft' || name === 'bottomright';
-    const x0 = name.endsWith('left') ? f.fx0 + 4 : f.fx0, x1 = name.endsWith('right') ? f.fx1 - 4 : f.fx1;
+    const x0 = name.endsWith('left') ? f.fx0 + r : f.fx0, x1 = name.endsWith('right') ? f.fx1 - r : f.fx1;
     let s = '';
-    if (isTop && raised && sheen) s += rect(x0, f.fy0 + 1, x1 - x0, f.fy1 - f.fy0 - 1, 'fill="url(#sheen)"');
+    if (isTop && raised && sheen) {
+      if (name === 'top') s += rect(x0, f.fy0 + 1, x1 - x0, f.fy1 - f.fy0 - 1, 'fill="url(#sheen)"');
+      else {
+        const sx = name === 'topleft' ? 1 : -1;
+        s += `<path d="${cornerArea(sx > 0 ? f.fx0 : f.fx1, f.fy0, sx, 1, f.fx1 - f.fx0, f.fy1 - f.fy0, r, 1)}" fill="url(#sheen)"/>`;
+      }
+    }
     if (isTop) s += raised ? rect(x0, f.fy0 + 1, x1 - x0, 1, `fill="#fff" fill-opacity="${g.lip}"`) : rect(x0, f.fy0 + 1, x1 - x0, 1, `fill="#000" fill-opacity="${g.shade}"`);
     if (isBottom) s += raised ? rect(x0, f.fy1 - 2, x1 - x0, 1, `fill="#000" fill-opacity="${g.shade}"`) : rect(x0, f.fy1 - 2, x1 - x0, 1, `fill="#fff" fill-opacity="${g.lip * 0.6}"`);
     return s;
@@ -395,7 +407,7 @@ const levelFill = (t) => cls('Text', t.dark ? 0.62 : 0.7);
 
 // a sunken slot: view ground, hairline ring, shade under the top edge, a faint lip at the foot
 const sunken = (t, prefix, x, y, C = 3, r = 3) =>
-  frame({ prefix, x, y, L: C, T: C, R: C, B: C, W: 16, H: 4, r, border: 1, fill: cls('ViewBackground'), stroke: cls('Text', t.dark ? 0.18 : 0.2), extra: bevel(t, { raised: false }) });
+  frame({ prefix, x, y, L: C, T: C, R: C, B: C, W: 16, H: 4, r, border: 1, fill: cls('ViewBackground'), stroke: cls('Text', t.dark ? 0.18 : 0.2), extra: bevel(t, { raised: false, r }) });
 
 // the level: a Text fill with the glass lip along its top edge (not over the corners' curve)
 const level = (t, prefix, x, y, C = 3, r = 3, fill = levelFill(t)) =>
@@ -443,16 +455,19 @@ function sliderSvg(t) {
 function switchSvg(t) {
   const g = GLASS[t.id];
   const R = 8, CW = 5, H = 16;
-  const lineAt = (op, white) => `fill="none" stroke="${white ? '#fff' : '#000'}" stroke-opacity="${n(op)}" stroke-width="1"`;
-  // one pill as left, center and right slices; `top` and `foot` are 1 px lines inside the ring, as arcs on the ends
+  const lineAt = (op, white) => `fill="${white ? '#fff' : '#000'}" fill-opacity="${n(op)}"`;
+  // One pill as left, center and right slices; `top` and `foot` are 1 px lines inside the ring, as arcs on the
+  // ends. They are fills, not strokes: Qt adds half a stroke's width to an element's bounds past each end, so
+  // stroked lines that ended on the slice edges measured the caps 8.5 px wide and the center 6, and FrameSvg laid
+  // the slices out half a pixel apart, which opened a dark seam between a cap and the steel fill.
   const pill = (prefix, x, y, { fill, ring, top, foot }) => {
     const L = [x + R, y + R], Rt = [x + R + CW, y + R]; // the two arc centers
     const half = (cx, s) => `M${n(cx)},${n(y)}A${R} ${R} 0 0 ${s > 0 ? 0 : 1} ${n(cx)},${n(y + H)}Z`;
     const halfRing = (cx, s) => `M${n(cx)},${n(y)}A${R} ${R} 0 0 ${s > 0 ? 0 : 1} ${n(cx)},${n(y + H)}L${n(cx)},${n(y + H - 1)}A${R - 1} ${R - 1} 0 0 ${s > 0 ? 1 : 0} ${n(cx)},${n(y + 1)}Z`;
-    const lines = (cx, a0, a1, b0, b1) => (top ? `<path d="${arc(cx, y + R, R - 1.5, a0, a1)}" ${top}/>` : '') + (foot ? `<path d="${arc(cx, y + R, R - 1.5, b0, b1)}" ${foot}/>` : '');
+    const lines = (cx, a0, a1, b0, b1) => (top ? `<path d="${sector(cx, y + R, R - 2, R - 1, a0, a1)}" ${top}/>` : '') + (foot ? `<path d="${sector(cx, y + R, R - 2, R - 1, b0, b1)}" ${foot}/>` : '');
     const left = `<g id="${prefix}left">${spacer(x, y, R, H)}<path d="${half(L[0], 1)}" ${fill}/>${ring ? `<path d="${halfRing(L[0], 1)}" ${ring}/>` : ''}${lines(L[0], 215, 270, 90, 145)}</g>`;
     const center = `<g id="${prefix}center">${spacer(x + R, y, CW, H)}${rect(x + R, y, CW, H, fill)}${ring ? rect(x + R, y, CW, 1, ring) + rect(x + R, y + H - 1, CW, 1, ring) : ''}` +
-      (top ? `<path d="M${n(x + R)},${n(y + 1.5)}H${n(x + R + CW)}" ${top}/>` : '') + (foot ? `<path d="M${n(x + R)},${n(y + H - 1.5)}H${n(x + R + CW)}" ${foot}/>` : '') + '</g>';
+      (top ? rect(x + R, y + 1, CW, 1, top) : '') + (foot ? rect(x + R, y + H - 2, CW, 1, foot) : '') + '</g>';
     const right = `<g id="${prefix}right">${spacer(x + R + CW, y, R, H)}<path d="${half(Rt[0], -1)}" ${fill}/>${ring ? `<path d="${halfRing(Rt[0], -1)}" ${ring}/>` : ''}${lines(Rt[0], 270, 325, 35, 90)}</g>`;
     return [left, center, right].join('\n');
   };
@@ -511,7 +526,7 @@ function pagerSvg(t) {
   return controlDoc(t, [
     tile('normal-', { fill: cls('Text', 0.05), stroke: cls('Text', 0.14) }),
     tile('hover-', { fill: cls('Text', 0.09), stroke: cls('ButtonHover') }),
-    tile('active-', { fill: cls('Text', t.dark ? 0.16 : 0.14), stroke: cls('Text', 0.34), extra: bevel(t, { raised: true, sheen: false }) }),
+    tile('active-', { fill: cls('Text', t.dark ? 0.16 : 0.14), stroke: cls('Text', 0.34), extra: bevel(t, { raised: true, sheen: false, r: 2 }) }),
     () => `<rect id="hint-tile-center" x="200" y="10" width="2" height="2" fill="#f0f" opacity=".001"/>`,
   ], '', 40);
 }
@@ -607,8 +622,8 @@ function frameSvg(t) {
   const fill = cls('Text', 0.03);
   return controlDoc(t, [
     block('plain-', { fill, stroke, r: 3, margins: { top: 6, bottom: 6, left: 6, right: 6 } }),
-    block('raised-', { fill, stroke, r: 3, margins: { top: 6, bottom: 8, left: 6, right: 6 }, extra: bevel(t, { raised: true }) }),
-    block('sunken-', { fill, stroke, r: 3, margins: { top: 6, bottom: 6, left: 6, right: 6 }, extra: bevel(t, { raised: false }) }),
+    block('raised-', { fill, stroke, r: 3, margins: { top: 6, bottom: 8, left: 6, right: 6 }, extra: bevel(t, { raised: true, r: 3 }) }),
+    block('sunken-', { fill, stroke, r: 3, margins: { top: 6, bottom: 6, left: 6, right: 6 }, extra: bevel(t, { raised: false, r: 3 }) }),
     () => `<rect id="hint-tile-center" x="200" y="10" width="2" height="2" fill="#f0f" opacity=".001"/>`,
   ]);
 }

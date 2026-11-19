@@ -16,7 +16,7 @@ import { auroraeTheme } from './lib/aurorae.mjs';
 import { kvantumTheme } from './lib/kvantum.mjs';
 import { ICON_THEMES, iconTheme } from './lib/icons.mjs';
 import { CURSOR_THEMES, writeCursorTheme } from './lib/cursors.mjs';
-import { WALLPAPERS, DEFAULT_WALLPAPER, WALLPAPER_SIZES, OLED_GROUND, LOCK_MARK, LOCK_SIZES, ART, quietWallpaper, lockWallpaper } from './lib/wallpaper.mjs';
+import { WALLPAPERS, DEFAULT_WALLPAPER, WALLPAPER_SIZES, OLED_GROUND, FOOTER, footerBoxes, LOCK_MARK, LOCK_SIZES, ART, quietWallpaper, lockWallpaper } from './lib/wallpaper.mjs';
 import { MARK, PLATE, PULSE, TEMPO, LAMP, barHeights } from './lib/mark.mjs';
 import { preview, splashPreview, SPLASH } from './lib/preview.mjs';
 import { PLYMOUTH, plymouthArt, plymouthDescriptor, plymouthScript } from './lib/plymouth.mjs';
@@ -125,22 +125,63 @@ for (const t of themes) {
 }
 log('Kvantum themes');
 
-// 4. wallpapers: the OLED set, packaged as they are, one ground for every variant (images/ only)
+// 4. wallpapers: the OLED set, one ground for every variant (images/ only), with each image's footer lifted clear
+//    of a bottom panel (wallpaper.mjs FOOTER); everything else in the image is as the set draws it
 const meta = (id, name, desc) => put(`wallpapers/${id}/metadata.json`, JSON.stringify({
   KPlugin: { Authors: [{ Name: 'innerpulse' }], Description: desc, Id: id, License: 'All rights reserved: see BRAND.md', Name: name, Version: VERSION },
 }, null, 4) + '\n');
+// a rectangle of an image as gray bytes, one per pixel
+const grayOf = (src, x, y, w, h) => execFileSync('magick', [src, '-crop', `${w}x${h}+${x}+${y}`, '+repage', '-colorspace', 'Gray', '-depth', '8', 'gray:-'], { maxBuffer: w * h + 4096 });
+// Copies src to out with the footer's two boxes moved up together by one lift, so the wordmark and the caption
+// keep their alignment: the largest lift up to FOOTER.liftTo whose landing is bare ground, and at least what
+// FOOTER.minClear asks. Returns the lift in px (0 when the footer already clears the panel).
+function liftFooter(src, out, w, h) {
+  const by = Math.floor(h * FOOTER.band[0]), bh = Math.ceil(h * FOOTER.band[1]) - by;
+  const pad = Math.max(3, Math.round(h * FOOTER.pad));
+  // each box with its margin, the margin moving along with it to carry the JPEG's ringing round the glyphs
+  const boxes = footerBoxes(grayOf(src, 0, by, w, bh), w, bh, by, h).map((b) => ({
+    ...b, px0: Math.max(0, b.x0 - pad), px1: Math.min(w - 1, b.x1 + pad), py0: b.y0 - pad, py1: Math.min(h - 1, b.y1 + pad),
+  }));
+  const foot = Math.max(...boxes.map((b) => b.y1));
+  const want = foot - (h - 1 - Math.round(h * FOOTER.liftTo)), least = foot - (h - 1 - Math.round(h * FOOTER.minClear));
+  if (want <= 0) { copyFileSync(src, out); return 0; }
+  // one gray strip over everything a box could land on, read once
+  const top = Math.min(...boxes.map((b) => b.py0)) - want;
+  const strip = grayOf(src, 0, top, w, Math.min(...boxes.map((b) => b.py0)) - top);
+  // a lift lands clear when every row a box moves onto (above where it was) is ground across its columns
+  const clear = (lift) => boxes.every((b) => {
+    for (let y = b.py0 - lift; y < Math.min(b.py1 - lift + 1, b.py0); y++) {
+      for (let x = b.px0; x <= b.px1; x++) if (strip[(y - top) * w + x] > FOOTER.ground) return false;
+    }
+    return true;
+  });
+  let lift = want;
+  while (lift >= Math.max(least, 1) && !clear(lift)) lift--;
+  if (lift < Math.max(least, 1)) throw new Error(`${src}: the footer can't rise ${least} px without landing on artwork`);
+  const args = [src, '-write', 'mpr:src', '-fill', OLED_GROUND];
+  const moves = [];
+  for (const b of boxes) {
+    args.push('-draw', `rectangle ${b.px0},${b.py0} ${b.px1},${b.py1}`);
+    moves.push('(', 'mpr:src', '-crop', `${b.px1 - b.px0 + 1}x${b.py1 - b.py0 + 1}+${b.px0}+${b.py0}`, '+repage', ')', '-geometry', `+${b.px0}+${b.py0 - lift}`, '-composite');
+  }
+  // the set's own encoding: quality 96, no chroma subsampling
+  execFileSync('magick', [...args, ...moves, '-quality', '96', '-sampling-factor', '1x1', out]);
+  return lift;
+}
 const sizes = fast ? WALLPAPER_SIZES.filter(([w]) => w === 2560) : WALLPAPER_SIZES;
+const lifts = new Map();
 for (const [set, id, name, desc] of WALLPAPERS) {
   meta(id, `innerpulse ${name}`, `${desc} (${set})`);
   for (const [w, h] of sizes) {
     const src = join(ART_DIR, id, `${w}x${h}.jpg`);
     if (!existsSync(src)) throw new Error(`wallpapers/${id}: missing ${w}x${h}.jpg`);
-    copyFileSync(src, put(`wallpapers/${id}/contents/images/${w}x${h}.jpg`, ''));
+    const lift = liftFooter(src, put(`wallpapers/${id}/contents/images/${w}x${h}.jpg`, ''), w, h);
+    lifts.set(`${w}x${h}`, [...(lifts.get(`${w}x${h}`) ?? []), lift]);
   }
-  execFileSync('magick', [join(ART_DIR, id, '2560x1440.jpg'), '-resize', '400x225', '-quality', '90',
+  execFileSync('magick', [join(DIST, `wallpapers/${id}/contents/images/2560x1440.jpg`), '-resize', '400x225', '-quality', '90',
     put(`wallpapers/${id}/contents/screenshot.jpg`, '')]);
 }
-log(`wallpapers: ${WALLPAPERS.length}`);
+log(`wallpapers: ${WALLPAPERS.length}, footer lifted ${[...lifts].map(([s, l]) => `${Math.min(...l)}–${Math.max(...l)} px at ${s}`).join(', ')}`);
 // install.sh --quiet-second-screen puts this on every screen but the primary one: the set's black, nothing on it
 {
   const id = 'innerpulse-quiet';
@@ -247,7 +288,7 @@ Theme=net.innerpulse.ink
   put(`${base}/contents/logout/AmbientMark.qml`, qml('src/qml/AmbientMark.qml'));
   // the lock screen as this theme sets it (its ground, the mark at rest), at Breeze's 600 × 337
   raster(lockSvgs[t.id], join(DIST, `${base}/contents/previews/lockscreen.png`), 600, 337);
-  const pv = putBuild(`preview-${t.id}.svg`, preview(t, join(ART_DIR, DEFAULT_WALLPAPER, '2560x1440.jpg')));
+  const pv = putBuild(`preview-${t.id}.svg`, preview(t, join(DIST, 'wallpapers', DEFAULT_WALLPAPER, 'contents/images/2560x1440.jpg')));
   raster(pv, join(DIST, `${base}/contents/previews/preview.png`), 640, 360);
   const full = join(BUILD, `full-${t.id}.png`);
   raster(pv, full, 1920, 1080);
